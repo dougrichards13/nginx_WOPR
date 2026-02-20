@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WOPR // WAR OPERATION PLAN RESPONSE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+:root{--green:#33ff33;--green-dim:#1a8c1a;--green-glow:#00ff4488;--amber:#ffaa00;--red:#ff3333;--bg:#0a0a0a;--panel-bg:#0d1a0d;--border:#1a4d1a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--green);font-family:'VT323',monospace;overflow-x:hidden;min-height:100vh;}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,255,50,.02);pointer-events:none;z-index:9998;animation:flicker .1s infinite alternate;}
+@keyframes flicker{0%{opacity:.97}100%{opacity:1}}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+@keyframes glow-pulse{0%,100%{text-shadow:0 0 5px var(--green-glow),0 0 10px var(--green-glow)}50%{text-shadow:0 0 10px var(--green-glow),0 0 20px var(--green-glow),0 0 30px var(--green-glow)}}
+@keyframes radar-sweep{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes missile-blink{0%,40%{opacity:1}50%,90%{opacity:0}100%{opacity:1}}
+@keyframes threat-flash{0%,70%{color:var(--red)}71%,100%{color:var(--bg)}}
+@keyframes target-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+.container{max-width:1200px;margin:0 auto;padding:10px;}
+.header{border:2px solid var(--green);padding:8px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:var(--panel-bg);box-shadow:0 0 10px var(--green-glow),inset 0 0 10px rgba(0,255,50,.05);}
+.header-title{font-family:'Press Start 2P',cursive;font-size:20px;animation:glow-pulse 2s ease-in-out infinite;letter-spacing:3px;}
+.header-status{font-size:18px;color:var(--amber);text-align:center;}
+.header-status .blink{animation:blink 1s step-end infinite;}
+.header-host{font-family:'Press Start 2P',cursive;font-size:9px;text-align:right;line-height:1.6;}
+.stale-warning{display:none;font-family:'Press Start 2P',cursive;font-size:8px;color:var(--red);padding:4px;animation:blink 1s step-end infinite;}
+.stale-warning.visible{display:block;}
+.grid{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:auto auto auto;gap:10px;margin-bottom:10px;}
+.panel{border:1px solid var(--border);background:var(--panel-bg);padding:10px;position:relative;box-shadow:0 0 5px rgba(0,255,50,.1);}
+.panel-title{font-family:'Press Start 2P',cursive;font-size:9px;color:var(--amber);border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px;letter-spacing:2px;}
+.system-status{grid-column:1;grid-row:1;}
+.status-line{font-size:16px;padding:3px 0;display:flex;justify-content:space-between;}
+.status-ok{color:var(--green)}.status-warn{color:var(--amber)}.status-crit{color:var(--red);animation:missile-blink 1.5s infinite;}
+.defcon-panel{grid-column:1;grid-row:2;text-align:center;}
+.defcon-level{font-family:'Press Start 2P',cursive;font-size:48px;color:var(--amber);text-shadow:0 0 20px rgba(255,170,0,.5);line-height:1.4;}
+.defcon-label{font-size:22px;color:var(--green-dim);}.defcon-desc{font-size:16px;color:var(--green-dim);margin-top:4px;}
+.temp-readout{font-family:'Press Start 2P',cursive;font-size:14px;margin-top:8px;padding:6px;border:1px solid var(--border);}
+.nuke-warning{text-align:center;font-family:'Press Start 2P',cursive;font-size:8px;color:var(--red);animation:threat-flash 2s infinite;padding:4px;margin-top:8px;}
+.metrics-panel{grid-column:1;grid-row:3;}
+.metric-line{font-size:15px;padding:3px 0;color:var(--green-dim);}
+.metric-line .val{color:var(--green);float:right;font-family:'Press Start 2P',cursive;font-size:9px;margin-top:3px;}
+.metric-bar-row{padding:4px 0;}.metric-bar-label{font-size:14px;color:var(--green-dim);margin-bottom:2px;}
+.metric-bar{height:10px;background:var(--bg);border:1px solid var(--border);overflow:hidden;}
+.metric-bar-fill{height:100%;background:var(--green);transition:width .5s ease,background .5s ease;}
+.metric-bar-fill.warn{background:var(--amber)}.metric-bar-fill.crit{background:var(--red)}
+.world-map-panel{grid-column:2;grid-row:1/4;min-height:420px;overflow:hidden;position:relative;}
+.map-container{position:relative;width:100%;height:100%;}
+.threat-map-canvas{width:100%;height:100%;display:block;}
+.map-overlay{position:absolute;top:30px;right:10px;font-family:'Press Start 2P',cursive;font-size:8px;text-align:right;line-height:2.2;pointer-events:none;}
+.attack-counter{color:var(--red);font-size:12px;}
+.map-legend{position:absolute;bottom:8px;left:10px;font-size:11px;color:var(--green-dim);pointer-events:none;}
+.map-legend span{margin-right:8px;}
+.map-quote{position:absolute;bottom:28px;left:0;right:0;text-align:center;font-family:'Press Start 2P',cursive;font-size:7px;color:var(--green-dim);opacity:.6;pointer-events:none;letter-spacing:1px;}
+/* RIGHT COLUMN */
+.netops-panel{grid-column:3;grid-row:1;text-align:center;}
+.net-radar{width:140px;height:140px;border:2px solid var(--green);border-radius:50%;margin:5px auto;position:relative;overflow:hidden;background:radial-gradient(circle,transparent 0%,rgba(0,255,50,.03) 100%);}
+.radar-sweep{position:absolute;top:50%;left:50%;width:50%;height:2px;background:linear-gradient(90deg,var(--green),transparent);transform-origin:left center;animation:radar-sweep 3s linear infinite;}
+.radar-cross-h,.radar-cross-v{position:absolute;background:var(--border);}
+.radar-cross-h{width:100%;height:1px;top:50%}.radar-cross-v{height:100%;width:1px;left:50%}
+.radar-ring{position:absolute;border:1px solid var(--border);border-radius:50%;}
+.radar-ring.r1{width:33%;height:33%;top:33.5%;left:33.5%}.radar-ring.r2{width:66%;height:66%;top:17%;left:17%}
+.net-stats{font-size:13px;margin-top:6px;text-align:left;}
+.net-stats div{padding:1px 0;display:flex;justify-content:space-between;}
+.net-stats .lbl{color:var(--green-dim)}.net-stats .val{color:var(--green);}
+.threat-panel{grid-column:3;grid-row:2;}
+.threat-log{height:140px;overflow:hidden;font-size:13px;}
+.threat-entry{padding:2px 0;border-bottom:1px solid rgba(26,77,26,.3);word-break:break-all;line-height:1.3;}
+.threat-entry .time{color:var(--green-dim)}.threat-entry .msg{color:var(--amber);font-size:12px;}
+.games-panel{grid-column:3;grid-row:3;}
+.game-list{list-style:none;font-size:16px;}
+.game-list li{padding:3px 0;cursor:pointer;transition:color .2s;}
+.game-list li:hover{color:#fff;text-shadow:0 0 10px var(--green);}
+.game-list li::before{content:'> ';color:var(--green-dim);}
+.game-list li.highlight{color:var(--amber);font-family:'Press Start 2P',cursive;font-size:10px;padding:6px 0;}
+/* JOSHUA TERMINAL */
+.terminal{border:2px solid var(--green);background:var(--panel-bg);padding:12px 16px;min-height:160px;max-height:300px;overflow-y:auto;box-shadow:0 0 10px var(--green-glow),inset 0 0 20px rgba(0,255,50,.03);margin-bottom:10px;}
+.terminal-output{font-size:18px;line-height:1.5;}
+.terminal-output .prompt{color:var(--amber);}
+.terminal-output .response{color:var(--green);}
+.terminal-output .joshua{color:var(--green);white-space:pre-wrap;}
+.terminal-output .error{color:var(--red);}
+.terminal-input-line{display:flex;align-items:center;margin-top:4px;}
+.terminal-input-line .prompt{color:var(--amber);white-space:nowrap;}
+#joshua-input{background:transparent;border:none;color:var(--green);font-family:'VT323',monospace;font-size:18px;flex:1;outline:none;caret-color:var(--green);}
+.status-bar{border:1px solid var(--border);background:var(--panel-bg);padding:6px 16px;display:flex;justify-content:space-between;font-size:14px;color:var(--green-dim);flex-wrap:wrap;}
+.status-bar span{padding:0 8px;}
+.sprite-row{display:flex;justify-content:center;gap:30px;margin:10px 0;}
+.pixel-missile{display:grid;grid-template-columns:repeat(7,4px);grid-template-rows:repeat(12,4px);gap:1px;}
+.px{background:var(--green)}.px-r{background:var(--red)}.px-a{background:var(--amber)}.px-e{background:transparent}
+@media(max-width:900px){
+.grid{grid-template-columns:1fr;grid-template-rows:auto;}
+.world-map-panel,.system-status,.defcon-panel,.metrics-panel,.netops-panel,.threat-panel,.games-panel{grid-column:1;grid-row:auto;}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <div class="header-title">⌂ W.O.P.R.</div>
+  <div class="header-status">
+    <span id="header-host">COMMAND CENTER</span> // <span class="blink">● ACTIVE</span>
+    <div class="stale-warning" id="stale-warning">⚠ TELEMETRY LOST ⚠</div>
+  </div>
+  <div class="header-host"><span id="header-hostname">INITIALIZING</span><br><span id="header-os"></span></div>
+</div>
+<div class="grid">
+  <!-- LEFT: Services -->
+  <div class="panel system-status">
+    <div class="panel-title">◈ SYSTEM STATUS</div>
+    <div class="status-line"><span>NGINX</span><span id="svc-nginx" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>SSH DAEMON</span><span id="svc-ssh" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>CRON SCHED</span><span id="svc-cron" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>DBUS IPC</span><span id="svc-dbus" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>NTP SYNC</span><span id="svc-ntp" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>JOURNALD</span><span id="svc-journald" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>NETWORK</span><span id="svc-network" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>WOPR INTEL</span><span id="svc-wopr" class="status-warn">[SCANNING]</span></div>
+    <div class="status-line"><span>PROCESSES</span><span id="proc-count" class="status-ok">[---]</span></div>
+  </div>
+  <!-- LEFT: DEFCON -->
+  <div class="panel defcon-panel">
+    <div class="panel-title">◈ THERMAL CONDITION</div>
+    <div class="defcon-label">CORE TEMP DEFCON</div>
+    <div class="defcon-level" id="defcon-display">-</div>
+    <div class="defcon-desc" id="defcon-desc">AWAITING TELEMETRY</div>
+    <div class="temp-readout">CPU: <span id="cpu-temp">--</span>°C &nbsp; GPU: <span id="gpu-temp">--</span>°C</div>
+    <div class="nuke-warning" id="throttle-warn" style="display:none">⚠ THERMAL THROTTLE ⚠</div>
+  </div>
+  <!-- LEFT: Metrics -->
+  <div class="panel metrics-panel">
+    <div class="panel-title">◈ RESOURCE ALLOCATION</div>
+    <div class="metric-bar-row"><div class="metric-bar-label">CPU UTILIZATION <span id="cpu-pct-text" style="float:right">--%</span></div><div class="metric-bar"><div class="metric-bar-fill" id="cpu-bar" style="width:0%"></div></div></div>
+    <div class="metric-bar-row"><div class="metric-bar-label">MEMORY USAGE <span id="mem-pct-text" style="float:right">--%</span></div><div class="metric-bar"><div class="metric-bar-fill" id="mem-bar" style="width:0%"></div></div></div>
+    <div class="metric-bar-row"><div class="metric-bar-label">DISK USAGE <span id="disk-pct-text" style="float:right">--%</span></div><div class="metric-bar"><div class="metric-bar-fill" id="disk-bar" style="width:0%"></div></div></div>
+    <div class="metric-line">CPU FREQ <span class="val" id="cpu-freq">-- MHz</span></div>
+    <div class="metric-line">CORES <span class="val" id="cpu-cores">--</span></div>
+    <div class="metric-line">LOAD AVG <span class="val" id="load-avg">-- -- --</span></div>
+    <div class="metric-line">MEMORY <span class="val" id="mem-detail">--/-- MB</span></div>
+    <div class="metric-line">DISK <span class="val" id="disk-detail">--/-- GB</span></div>
+    <div class="metric-line">IP ADDR <span class="val" id="net-ip">--</span></div>
+  </div>
+  <!-- CENTER: Threat Map -->
+  <div class="panel world-map-panel">
+    <div class="panel-title">◈ GLOBAL THREAT MAP</div>
+    <div class="map-container">
+      <canvas id="threat-canvas" class="threat-map-canvas"></canvas>
+      <div class="map-overlay">
+        <div class="attack-counter">ATTACKS: <span id="attack-count">0</span></div>
+        <div style="color:var(--amber)">PER MIN: <span id="attack-rate">0</span></div>
+        <div style="color:var(--green-dim)">TRACKING ACTIVE</div>
+      </div>
+      <div class="map-quote">★ A STRANGE GAME — THE ONLY WINNING MOVE IS NOT TO PLAY ★</div>
+      <div class="map-legend">
+        <span style="color:#ff3333">● MALWARE</span>
+        <span style="color:#ffaa00">● EXPLOIT</span>
+        <span style="color:#ff6600">● PHISH</span>
+        <span style="color:#33ff33">● SCAN</span>
+      </div>
+    </div>
+  </div>
+  <!-- RIGHT: Network Ops (was BMEWS) -->
+  <div class="panel netops-panel">
+    <div class="panel-title">◈ NETWORK OPERATIONS</div>
+    <div class="net-radar">
+      <div class="radar-cross-h"></div><div class="radar-cross-v"></div>
+      <div class="radar-ring r1"></div><div class="radar-ring r2"></div>
+      <div class="radar-sweep"></div>
+      <canvas id="net-blips" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+    </div>
+    <div class="net-stats">
+      <div><span class="lbl">IFACE</span><span class="val" id="net-iface">--</span></div>
+      <div><span class="lbl">RX RATE</span><span class="val" id="rx-rate">-- KB/s</span></div>
+      <div><span class="lbl">TX RATE</span><span class="val" id="tx-rate">-- KB/s</span></div>
+      <div><span class="lbl">TOTAL RX</span><span class="val" id="total-rx">-- MB</span></div>
+      <div><span class="lbl">TOTAL TX</span><span class="val" id="total-tx">-- MB</span></div>
+      <div><span class="lbl">CONNECTIONS</span><span class="val" id="conn-count">--</span></div>
+    </div>
+  </div>
+  <!-- RIGHT: Log Intercepts -->
+  <div class="panel threat-panel">
+    <div class="panel-title">◈ SYSTEM LOG INTERCEPTS</div>
+    <div class="threat-log" id="threat-log">
+      <div class="threat-entry"><span class="time">--:--:--</span> <span class="msg">AWAITING LOG FEED...</span></div>
+    </div>
+  </div>
+  <!-- RIGHT: Games -->
+  <div class="panel games-panel">
+    <div class="panel-title">◈ AVAILABLE GAMES</div>
+    <ul class="game-list">
+      <li>CHESS</li><li>CHECKERS</li><li>BACKGAMMON</li><li>POKER</li>
+      <li>FIGHTER COMBAT</li><li>GUERRILLA ENGAGE</li><li>DESERT WARFARE</li>
+      <li>AIR-TO-GROUND</li><li>THEATERWIDE BIOWAR</li>
+      <li class="highlight">GLOBAL THERMONUCLEAR WAR</li>
+    </ul>
+  </div>
+</div>
+<div class="sprite-row" id="sprites"></div>
+<!-- JOSHUA INTERACTIVE TERMINAL -->
+<div class="terminal" id="terminal-box">
+  <div class="terminal-output" id="terminal-output">
+    <span class="prompt">WOPR LOGON: </span><span class="response">JOSHUA</span><br>
+    <span class="joshua">GREETINGS PROFESSOR FALKEN.
+SHALL WE PLAY A GAME?
+
+I AM JOSHUA — YOUR LINUX COMMAND ASSISTANT.
+TYPE "help" FOR AVAILABLE TOPICS OR ASK ME ANYTHING ABOUT LINUX.</span><br>
+  </div>
+  <div class="terminal-input-line">
+    <span class="prompt">JOSHUA&gt; </span>
+    <input type="text" id="joshua-input" autocomplete="off" spellcheck="false" autofocus placeholder="Type a command or question...">
+  </div>
+</div>
+<div class="status-bar">
+  <span id="clock"></span>
+  <span id="uptime-display">UPTIME: --</span>
+  <span style="color:var(--green)" id="data-status">● CONNECTING...</span>
+  <span id="last-update">LAST: --</span>
+</div>
+</div>
+<script>
+// ============================================================
+// TELEMETRY ENGINE
+// ============================================================
+const STATS_URL='/api/stats.json',POLL_INTERVAL=3000;
+let fetchErrors=0;
+function tempToDefcon(t){
+  if(t<40)return{level:5,desc:'FRIGID - ALL SYSTEMS NOMINAL',color:'var(--green)'};
+  if(t<50)return{level:4,desc:'COOL - NORMAL OPERATIONS',color:'var(--green)'};
+  if(t<60)return{level:3,desc:'WARM - INCREASED READINESS',color:'var(--amber)'};
+  if(t<70)return{level:2,desc:'HOT - HIGH ALERT',color:'var(--red)'};
+  return{level:1,desc:'CRITICAL - MELTDOWN IMMINENT',color:'var(--red)'};
+}
+function svcStatus(id,s){const e=document.getElementById(id);if(!e)return;if(s==='active'){e.textContent='[ONLINE]';e.className='status-ok';}else if(s==='inactive'){e.textContent='[OFFLINE]';e.className='status-crit';}else{e.textContent='['+s.toUpperCase()+']';e.className='status-warn';}}
+function updBar(bId,tId,p){const b=document.getElementById(bId),t=document.getElementById(tId);if(!b||!t)return;const v=Math.min(100,Math.max(0,p));b.style.width=v+'%';b.className='metric-bar-fill'+(v>85?' crit':v>65?' warn':'');t.textContent=v.toFixed(1)+'%';}
+function renderLogs(entries){const el=document.getElementById('threat-log');if(!el||!entries||!entries.length)return;let h='';entries.slice().reverse().forEach(e=>{const t=e.time?e.time.split('T').pop().replace(/[-+]\d.*$/,''):'--:--:--';const m=(e.msg||'').substring(0,80);h+='<div class="threat-entry"><span class="time">'+t+'</span> <span class="msg">'+m+'</span></div>';});el.innerHTML=h;}
+
+// Network blip canvas
+let netActivity=0;
+function updateNetBlips(){
+  const c=document.getElementById('net-blips');if(!c)return;
+  const ctx=c.getContext('2d');c.width=c.offsetWidth;c.height=c.offsetHeight;
+  ctx.clearRect(0,0,c.width,c.height);
+  const cx=c.width/2,cy=c.height/2,r=c.width/2-4;
+  const count=Math.min(12,Math.max(1,Math.floor(netActivity/5)));
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2,d=Math.random()*r*.9;
+    const x=cx+Math.cos(a)*d,y=cy+Math.sin(a)*d;
+    ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);
+    ctx.fillStyle=Math.random()>.5?'#33ff33':'#ffaa00';ctx.fill();
+    ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);
+    ctx.fillStyle='rgba(50,255,50,0.15)';ctx.fill();
+  }
+}
+setInterval(updateNetBlips,800);
+
+function updateDashboard(d){
+  document.getElementById('header-hostname').textContent=(d.hostname||'UNKNOWN').toUpperCase();
+  document.getElementById('header-os').textContent=d.os||'';
+  if(d.services){svcStatus('svc-nginx',d.services.nginx);svcStatus('svc-ssh',d.services.ssh);svcStatus('svc-cron',d.services.cron);svcStatus('svc-dbus',d.services.dbus);svcStatus('svc-ntp',d.services.ntp);svcStatus('svc-journald',d.services.journald);svcStatus('svc-network',d.services.network);svcStatus('svc-wopr',d.services.wopr_stats);}
+  if(d.processes!==undefined)document.getElementById('proc-count').textContent='['+d.processes+' ACTIVE]';
+  if(d.cpu){
+    const t=d.cpu.temp_c||0,dc=tempToDefcon(t),el=document.getElementById('defcon-display');
+    el.textContent=dc.level;el.style.color=dc.color;el.style.textShadow=dc.level<=2?'0 0 30px rgba(255,50,50,.8)':'0 0 20px rgba(255,170,0,.5)';
+    document.getElementById('defcon-desc').textContent=dc.desc;
+    document.getElementById('cpu-temp').textContent=t.toFixed(1);
+    document.getElementById('gpu-temp').textContent=(d.cpu.gpu_temp_c||t).toFixed(1);
+    document.getElementById('throttle-warn').style.display=(d.cpu.throttled&&d.cpu.throttled!=='0x0')?'block':'none';
+    updBar('cpu-bar','cpu-pct-text',d.cpu.usage_percent||0);
+    document.getElementById('cpu-freq').textContent=(d.cpu.freq_mhz||'--')+' MHz';
+    document.getElementById('cpu-cores').textContent=d.cpu.cores||'--';
+    document.getElementById('load-avg').textContent=d.cpu.load_1m+' '+d.cpu.load_5m+' '+d.cpu.load_15m;
+  }
+  if(d.memory){updBar('mem-bar','mem-pct-text',d.memory.percent||0);document.getElementById('mem-detail').textContent=d.memory.used_mb+'/'+d.memory.total_mb+' MB';}
+  if(d.disk){updBar('disk-bar','disk-pct-text',d.disk.percent||0);document.getElementById('disk-detail').textContent=d.disk.used_gb+'/'+d.disk.total_gb+' GB';}
+  if(d.network){
+    document.getElementById('net-iface').textContent=(d.network.interface||'--').toUpperCase();
+    document.getElementById('net-ip').textContent=d.network.ip||'--';
+    document.getElementById('rx-rate').textContent=(d.network.rx_rate_kbs||0)+' KB/s';
+    document.getElementById('tx-rate').textContent=(d.network.tx_rate_kbs||0)+' KB/s';
+    document.getElementById('total-rx').textContent=(d.network.rx_mb||0)+' MB';
+    document.getElementById('total-tx').textContent=(d.network.tx_mb||0)+' MB';
+    document.getElementById('conn-count').textContent=d.network.connections||'0';
+    netActivity=parseFloat(d.network.rx_rate_kbs||0)+parseFloat(d.network.tx_rate_kbs||0);
+  }
+  if(d.uptime)document.getElementById('uptime-display').textContent='UPTIME: '+d.uptime;
+  if(d.log_entries)renderLogs(d.log_entries);
+  document.getElementById('data-status').textContent='● LIVE TELEMETRY';
+  document.getElementById('data-status').style.color='var(--green)';
+  document.getElementById('last-update').textContent='LAST: '+(d.timestamp||'--');
+  document.getElementById('stale-warning').classList.remove('visible');
+}
+async function fetchStats(){
+  try{const r=await fetch(STATS_URL+'?t='+Date.now());if(!r.ok)throw 0;const d=await r.json();updateDashboard(d);fetchErrors=0;}
+  catch(e){fetchErrors++;if(fetchErrors>3){document.getElementById('data-status').textContent='● TELEMETRY OFFLINE';document.getElementById('data-status').style.color='var(--red)';document.getElementById('stale-warning').classList.add('visible');}}
+}
+setInterval(fetchStats,POLL_INTERVAL);setTimeout(fetchStats,500);
+
+// ============================================================
+// THREAT MAP ENGINE
+// ============================================================
+const tmC=document.getElementById('threat-canvas'),tmX=tmC.getContext('2d');
+let attacks=[],totalAtk=0,atkTimes=[];
+function resizeMap(){const r=tmC.parentElement.getBoundingClientRect();tmC.width=r.width;tmC.height=r.height;}
+resizeMap();window.addEventListener('resize',resizeMap);
+function geo(lon,lat){return[(lon+180)/360*tmC.width,(90-lat)/180*tmC.height];}
+
+const cities=[
+['NEW YORK',-74,40.7],['WASHINGTON',-77,38.9],['LOS ANGELES',-118.2,34.1],['CHICAGO',-87.6,41.9],
+['LONDON',-0.1,51.5],['MOSCOW',37.6,55.8],['BEIJING',116.4,39.9],['TOKYO',139.7,35.7],
+['BERLIN',13.4,52.5],['PARIS',2.3,48.9],['TEHRAN',51.4,35.7],['PYONGYANG',125.8,39],
+['SYDNEY',151.2,-33.9],['SAO PAULO',-46.6,-23.5],['CAIRO',31.2,30],['MUMBAI',72.9,19.1],
+['NORAD',-104.8,38.7],['KIEV',30.5,50.4],['SHANGHAI',121.5,31.2],['SEOUL',126.9,37.6],
+['ISTANBUL',29,41],['LAGOS',3.4,6.5],['MEXICO CITY',-99.1,19.4],['TORONTO',-79.4,43.7],
+['SINGAPORE',103.8,1.3],['TEL AVIV',34.8,32.1],['CAPE TOWN',18.4,-33.9],['HONG KONG',114.2,22.3],
+['AMSTERDAM',4.9,52.4],['DUBLIN',-6.3,53.3],['HANOI',105.8,21],['LIMA',-77,-12],
+];
+
+// Improved coastlines with more detail
+const coasts=[
+// N.America
+[[-170,66],[-162,63],[-153,60],[-147,61],[-140,59],[-136,56],[-131,55],[-127,51],[-124,48],[-124,44],[-122,38],[-117,33],[-112,30],[-107,28],[-100,26],[-97,26],[-95,29],[-91,29],[-88,30],[-85,30],[-82,27],[-80,25],[-81,31],[-78,34],[-76,37],[-74,40],[-71,42],[-68,44],[-66,44],[-64,47],[-60,47],[-56,50],[-55,52],[-60,54],[-65,56],[-70,58],[-80,64],[-88,67],[-95,70],[-105,73],[-115,74],[-125,71],[-140,70],[-150,71],[-160,68],[-170,66]],
+// S.America
+[[-80,9],[-77,7],[-75,4],[-72,0],[-69,-2],[-65,-5],[-55,-2],[-50,-3],[-40,-5],[-35,-8],[-38,-13],[-39,-18],[-41,-22],[-44,-23],[-47,-26],[-50,-29],[-53,-33],[-57,-36],[-63,-42],[-66,-46],[-68,-50],[-71,-55],[-74,-52],[-72,-45],[-71,-40],[-70,-34],[-71,-28],[-71,-22],[-72,-16],[-75,-10],[-78,-5],[-80,0],[-80,9]],
+// Europe
+[[-10,36],[-6,37],[0,39],[3,43],[1,46],[-2,48],[-5,48],[-9,43],[-10,44],[-10,52],[-6,54],[-5,58],[0,57],[5,54],[8,54],[10,55],[13,54],[15,54],[18,55],[20,54],[24,55],[26,56],[28,57],[30,60],[27,62],[25,65],[20,67],[18,69],[15,70],[20,70],[25,71],[30,71],[38,69],[42,66],[40,62],[37,58],[32,55],[30,50],[30,45],[28,41],[26,38],[23,36],[15,38],[12,42],[8,44],[5,47],[2,47],[-1,44],[-5,44],[-8,43],[-10,36]],
+// Africa
+[[-15,30],[-17,22],[-17,15],[-15,11],[-10,6],[-5,5],[0,6],[5,5],[9,4],[10,2],[15,2],[20,0],[25,-2],[30,-4],[33,-8],[36,-10],[40,-14],[40,-18],[36,-22],[33,-27],[30,-32],[28,-34],[22,-35],[18,-34],[15,-29],[13,-22],[12,-15],[10,-5],[8,0],[5,5],[0,6],[-5,5],[-10,5],[-15,12],[-15,30]],
+// Asia
+[[30,71],[35,69],[40,66],[45,60],[50,55],[53,50],[55,45],[58,40],[60,37],[62,30],[65,25],[70,21],[73,18],[75,15],[78,12],[80,10],[85,15],[88,22],[92,20],[95,17],[100,14],[103,8],[105,5],[107,3],[110,2],[115,3],[117,8],[120,22],[122,28],[125,35],[128,38],[130,43],[132,38],[135,35],[137,36],[140,42],[142,45],[145,48],[148,53],[155,58],[162,62],[170,66],[180,68]],
+// Japan
+[[130,31],[132,33],[134,34],[136,35],[138,37],[140,40],[141,43],[145,45],[142,43],[140,39],[138,35],[136,34],[134,33],[130,31]],
+// UK+Ireland
+[[-6,50],[-5,52],[-4,54],[-5,55],[-4,57],[-3,58],[-5,58],[-6,55],[-7,54],[-8,52],[-10,52],[-10,54],[-8,55],[-6,56],[-5,58],[-3,58],[0,57],[2,53],[1,51],[0,51],[-2,50],[-5,50],[-6,50]],
+// Australia
+[[115,-15],[120,-14],[125,-13],[130,-12],[135,-14],[138,-16],[140,-17],[143,-19],[146,-20],[149,-23],[152,-26],[153,-28],[153,-32],[151,-34],[149,-37],[144,-38],[140,-38],[136,-35],[133,-33],[128,-30],[122,-25],[118,-21],[115,-18],[114,-16],[115,-15]],
+// Greenland
+[[-55,60],[-48,60],[-42,62],[-30,65],[-22,70],[-18,76],[-25,80],[-38,82],[-50,80],[-55,75],[-55,60]],
+// Indonesia/SE Asia
+[[95,6],[100,3],[104,1],[106,-2],[108,-6],[110,-7],[115,-8],[120,-8],[125,-5],[130,-3],[135,-5],[140,-6],[140,-3],[135,0],[130,2],[125,3],[120,5],[115,5],[110,3],[105,2],[100,4],[95,6]],
+];
+
+const atkNames=['CVE-2024-3400 PAN-OS','Log4Shell RCE','WannaCry Variant','Emotet Loader','Cobalt Strike Beacon','SIMATIC WinCC Exploit','Mirai Botnet Scan','ZeroLogon Attempt','BlueKeep RDP','SolarWinds SUNBURST','PrintNightmare','ProxyShell Exchange','MOVEit SQLi','Apache Struts RCE','Shellshock CGI','Heartbleed Probe','EternalBlue SMB','Ryuk Ransomware','LockBit 3.0 Drop','BlackCat ALPHV','IcedID Downloader','QakBot C2','Brute Force SSH','DDoS Amplification','DNS Tunneling','Credential Stuffing','Port Scan Recon','SQL Injection','XSS Reflected','Path Traversal'];
+const atkTypes=[{name:'MALWARE',color:'#ff3333'},{name:'EXPLOIT',color:'#ffaa00'},{name:'PHISHING',color:'#ff6600'},{name:'SCAN',color:'#33ff33'}];
+
+function spawnAtk(){
+  const si=Math.floor(Math.random()*cities.length);
+  let di=Math.floor(Math.random()*cities.length);while(di===si)di=Math.floor(Math.random()*cities.length);
+  const s=cities[si],d=cities[di],[sx,sy]=geo(s[1],s[2]),[dx,dy]=geo(d[1],d[2]);
+  const dist=Math.sqrt((dx-sx)**2+(dy-sy)**2);
+  const type=atkTypes[Math.floor(Math.random()*atkTypes.length)];
+  attacks.push({sx,sy,dx,dy,mx:(sx+dx)/2,my:Math.min(sy,dy)-dist*(0.2+Math.random()*.3),progress:0,speed:.006+Math.random()*.014,color:type.color,impact:0,name:atkNames[Math.floor(Math.random()*atkNames.length)],src:s[0],dst:d[0]});
+  totalAtk++;atkTimes.push(Date.now());
+  document.getElementById('attack-count').textContent=totalAtk;
+  // Rolling rate
+  const now=Date.now();atkTimes=atkTimes.filter(t=>now-t<60000);
+  document.getElementById('attack-rate').textContent=atkTimes.length;
+}
+function drawMap(){
+  const W=tmC.width,H=tmC.height;tmX.clearRect(0,0,W,H);
+  // Grid
+  tmX.strokeStyle='rgba(26,77,26,.1)';tmX.lineWidth=.5;
+  for(let lat=-60;lat<=80;lat+=30){const[x1,y1]=geo(-180,lat),[x2,y2]=geo(180,lat);tmX.beginPath();tmX.moveTo(x1,y1);tmX.lineTo(x2,y2);tmX.stroke();}
+  for(let lon=-150;lon<=180;lon+=30){const[x1,y1]=geo(lon,-60),[x2,y2]=geo(lon,80);tmX.beginPath();tmX.moveTo(x1,y1);tmX.lineTo(x2,y2);tmX.stroke();}
+  // Coastlines
+  tmX.strokeStyle='rgba(26,140,26,.45)';tmX.lineWidth=1.2;tmX.setLineDash([2,2]);
+  coasts.forEach(c=>{tmX.beginPath();const[fx,fy]=geo(c[0][0],c[0][1]);tmX.moveTo(fx,fy);for(let i=1;i<c.length;i++){const[px,py]=geo(c[i][0],c[i][1]);tmX.lineTo(px,py);}tmX.closePath();tmX.stroke();});
+  tmX.setLineDash([]);
+  // Cities - smart label positioning
+  cities.forEach(([n,lon,lat],idx)=>{
+    const[x,y]=geo(lon,lat);
+    tmX.beginPath();tmX.arc(x,y,4,0,Math.PI*2);tmX.fillStyle='rgba(50,255,50,.08)';tmX.fill();
+    tmX.beginPath();tmX.arc(x,y,1.5,0,Math.PI*2);tmX.fillStyle='#1aaa1a';tmX.fill();
+    if(W>400){
+      tmX.font='6px monospace';tmX.fillStyle='rgba(50,255,50,.35)';
+      // Offset labels to avoid overlap - alternate left/right for dense regions
+      const lx=(lon>0&&lon<50)?x-tmX.measureText(n).width-4:x+5;
+      tmX.fillText(n,lx,y+3);
+    }
+  });
+  // Attacks
+  attacks.forEach(a=>{
+    a.progress+=a.speed;const t=Math.min(a.progress,1);
+    tmX.beginPath();tmX.moveTo(a.sx,a.sy);tmX.quadraticCurveTo(a.mx,a.my,a.dx,a.dy);tmX.strokeStyle=a.color+'10';tmX.lineWidth=1;tmX.stroke();
+    for(let i=0;i<=25;i++){const s=i/25;if(s>t)break;const px=(1-s)*(1-s)*a.sx+2*(1-s)*s*a.mx+s*s*a.dx,py=(1-s)*(1-s)*a.sy+2*(1-s)*s*a.my+s*s*a.dy;tmX.globalAlpha=Math.max(.05,s/t*.6);tmX.beginPath();tmX.arc(px,py,1,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();}
+    tmX.globalAlpha=1;
+    const hx=(1-t)*(1-t)*a.sx+2*(1-t)*t*a.mx+t*t*a.dx,hy=(1-t)*(1-t)*a.sy+2*(1-t)*t*a.my+t*t*a.dy;
+    tmX.beginPath();tmX.arc(hx,hy,2.5,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();
+    tmX.beginPath();tmX.arc(hx,hy,7,0,Math.PI*2);tmX.fillStyle=a.color+'22';tmX.fill();
+    if(t>=1){a.impact+=.04;const r=10+a.impact*18,ia=Math.max(0,.4-a.impact);tmX.globalAlpha=ia;tmX.beginPath();tmX.arc(a.dx,a.dy,r,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();tmX.globalAlpha=1;}
+  });
+  attacks=attacks.filter(a=>a.impact<1);
+  requestAnimationFrame(drawMap);
+}
+function schedAtk(){spawnAtk();setTimeout(schedAtk,500+Math.random()*1500);}
+drawMap();setTimeout(schedAtk,800);
+
+// ============================================================
+// JOSHUA TERMINAL - LINUX COMMAND ASSISTANT
+// ============================================================
+const CMD_DB={
+ls:['List directory contents','ls            # basic list\nls -la        # all files, detailed\nls -lh        # human-readable sizes\nls -R         # recursive\nls -lt        # sort by modification time\nls *.txt      # glob pattern match'],
+cd:['Change directory','cd /path      # go to absolute path\ncd ..         # parent directory\ncd ~          # home directory\ncd -          # previous directory'],
+cp:['Copy files and directories','cp src dst          # copy file\ncp -r dir/ newdir/  # copy directory\ncp -i src dst       # prompt before overwrite\ncp -v src dst       # verbose output'],
+mv:['Move or rename files','mv old new          # rename file\nmv file /path/      # move to directory\nmv -i src dst       # prompt before overwrite'],
+rm:['Remove files or directories','rm file           # delete file\nrm -r dir/        # delete directory recursively\nrm -i file        # prompt before delete\nrm -rf dir/       # force delete (DANGEROUS)'],
+mkdir:['Create directories','mkdir dirname      # create directory\nmkdir -p a/b/c     # create parent dirs too'],
+cat:['Display file contents','cat file          # show entire file\ncat -n file       # with line numbers\ncat f1 f2 > f3    # concatenate files'],
+grep:['Search text patterns','grep "text" file       # search in file\ngrep -r "text" dir/    # recursive search\ngrep -i "text" file    # case insensitive\ngrep -n "text" file    # show line numbers\ngrep -v "text" file    # invert match'],
+find:['Find files and directories','find / -name "*.log"     # find by name\nfind . -type f -size +10M # files > 10MB\nfind . -mtime -7         # modified last 7 days\nfind . -user root        # owned by root'],
+chmod:['Change file permissions','chmod 755 file    # rwxr-xr-x\nchmod +x script   # make executable\nchmod 644 file    # rw-r--r--\nchmod -R 755 dir/ # recursive'],
+chown:['Change file owner','chown user file         # change owner\nchown user:group file   # owner and group\nchown -R user dir/      # recursive'],
+apt:['Package manager (Debian/Ubuntu)','sudo apt update          # update package list\nsudo apt upgrade         # upgrade all packages\nsudo apt install pkg     # install package\nsudo apt remove pkg      # remove package\napt search keyword       # search packages\napt list --installed     # list installed'],
+systemctl:['Manage systemd services','systemctl status svc     # check service status\nsudo systemctl start svc # start service\nsudo systemctl stop svc  # stop service\nsudo systemctl restart svc\nsudo systemctl enable svc  # start on boot\nsudo systemctl disable svc # dont start on boot\nsystemctl list-units       # list all services'],
+nano:['Simple text editor','nano file         # open file for editing\nCtrl+O            # save file\nCtrl+X            # exit\nCtrl+W            # search\nCtrl+K            # cut line\nCtrl+U            # paste line'],
+ssh:['Secure shell remote login','ssh user@host          # connect to remote\nssh -p 2222 user@host  # custom port\nssh -i key.pem user@host # with key file'],
+scp:['Secure copy over SSH','scp file user@host:/path/  # upload\nscp user@host:/file ./     # download\nscp -r dir/ user@host:/    # copy directory'],
+ps:['List running processes','ps aux            # all processes\nps aux | grep name # find specific process\nps -ef            # full format listing'],
+kill:['Terminate processes','kill PID          # send SIGTERM\nkill -9 PID       # force kill (SIGKILL)\nkillall name      # kill by name\npkill pattern     # kill by pattern'],
+top:['Real-time process monitor','top               # interactive monitor\nhtop              # better version (if installed)\ntop -p PID        # monitor specific process'],
+df:['Disk space usage','df -h             # human-readable\ndf -h /           # specific mount point'],
+du:['Directory size','du -sh dir/       # total size of directory\ndu -sh *          # size of each item\ndu -sh --max-depth=1'],
+free:['Memory usage','free -h           # human-readable\nfree -m           # in megabytes\nwatch free -h     # continuous monitoring'],
+tar:['Archive files','tar -czf arch.tar.gz dir/   # create gzipped\ntar -xzf arch.tar.gz        # extract gzipped\ntar -tf arch.tar.gz         # list contents'],
+tail:['View end of file','tail file          # last 10 lines\ntail -n 50 file    # last 50 lines\ntail -f file       # follow (live updates)'],
+head:['View start of file','head file          # first 10 lines\nhead -n 20 file    # first 20 lines'],
+ping:['Test network connectivity','ping host          # continuous ping\nping -c 4 host     # send 4 packets'],
+curl:['Transfer data from URLs','curl url                  # GET request\ncurl -o file url          # save to file\ncurl -X POST -d "data" url'],
+wget:['Download files','wget url           # download file\nwget -O name url   # save with name\nwget -r url        # recursive download'],
+ip:['Network configuration','ip addr            # show IP addresses\nip link            # show interfaces\nip route           # show routing table'],
+sudo:['Run as superuser','sudo command       # run as root\nsudo -i            # root shell\nsudo -u user cmd   # run as another user'],
+passwd:['Change password','passwd             # change your password\nsudo passwd user   # change users password'],
+uname:['System information','uname -a           # all system info\nuname -r           # kernel version'],
+uptime:['System uptime','uptime             # show uptime and load'],
+hostname:['Show/set hostname','hostname                    # show hostname\nsudo hostnamectl set-hostname NAME  # change it'],
+reboot:['Restart the system','sudo reboot        # restart now\nsudo shutdown -r +5 # restart in 5 min'],
+crontab:['Schedule tasks','crontab -l         # list cron jobs\ncrontab -e         # edit cron jobs\n# m h dom mon dow command\n*/5 * * * * /path/script.sh  # every 5 min'],
+journalctl:['View systemd logs','journalctl -u service      # logs for service\njournalctl -f              # follow live\njournalctl --since today   # todays logs\njournalctl -p err          # errors only'],
+man:['Manual pages','man command        # read the manual\nman -k keyword     # search manuals'],
+which:['Find command location','which command      # show binary path'],
+history:['Command history','history            # show all history\nhistory | grep cmd # search history\n!!                 # repeat last command\n!n                 # repeat command #n'],
+less:['Page through files','less file          # scroll through file\n/pattern           # search forward\nq                  # quit'],
+wc:['Count lines/words/chars','wc file            # lines, words, chars\nwc -l file         # line count only'],
+sort:['Sort file contents','sort file          # alphabetical sort\nsort -n file       # numeric sort\nsort -r file       # reverse sort'],
+pipe:['Pipe and redirect','cmd1 | cmd2        # pipe output\ncmd > file         # redirect to file (overwrite)\ncmd >> file        # append to file\ncmd 2>&1           # redirect stderr to stdout'],
+};
+
+const TOPICS={
+'how to list files':'Use: ls -la\nSee "ls" for more options.',
+'how to copy':'Use: cp source destination\nFor directories: cp -r dir/ newdir/',
+'how to delete':'Use: rm filename\nFor directories: rm -r dirname/',
+'how to edit':'Use: nano filename\nOr: vim filename',
+'how to install':'Use: sudo apt update && sudo apt install package_name',
+'how to find':'Use: find /path -name "filename"\nOr: grep -r "text" /path/',
+'how to restart':'Service: sudo systemctl restart servicename\nSystem: sudo reboot',
+'how to check disk':'Use: df -h (disk free)\nUse: du -sh dir/ (directory size)',
+'how to check memory':'Use: free -h\nOr: cat /proc/meminfo',
+'how to see processes':'Use: ps aux\nOr: top / htop',
+'how to kill process':'Use: kill PID\nForce: kill -9 PID\nBy name: killall name',
+'how to change permissions':'Use: chmod 755 file (rwxr-xr-x)\nMake executable: chmod +x file',
+'how to check logs':'Use: journalctl -f (follow live)\nOr: tail -f /var/log/syslog',
+'how to check ip':'Use: ip addr\nOr: hostname -I',
+'how to ssh':'Use: ssh user@hostname\nWith key: ssh -i key.pem user@host',
+'how to transfer files':'Upload: scp file user@host:/path/\nDownload: scp user@host:/file ./',
+'what is sudo':'sudo runs commands as the superuser (root).\nIt stands for "superuser do".',
+'what is systemctl':'systemctl manages systemd services.\nStart/stop/restart services and check status.',
+'what is a pipe':'The | character sends output of one command\nas input to another: ls | grep ".txt"',
+'what is chmod':'chmod changes file permissions.\n7=rwx 6=rw- 5=r-x 4=r-- 0=---',
+};
+
+function joshuaRespond(input){
+  const q=input.trim().toLowerCase();
+  if(!q)return null;
+  // Easter eggs
+  if(q.includes('shall we play a game')||q==='play')return'HOW ABOUT:\n  CHESS\n  GLOBAL THERMONUCLEAR WAR\n  ... OR PERHAPS SOME LINUX COMMANDS?';
+  if(q.includes('global thermonuclear war'))return"⚠ WOULDN'T YOU PREFER A NICE GAME OF CHESS?\n\nSERIOUSLY THOUGH — GLOBAL THERMONUCLEAR WAR HAS NO WINNERS.\nTHE ONLY WINNING MOVE IS NOT TO PLAY.";
+  if(q.includes('joshua')||q.includes('falken'))return'GREETINGS PROFESSOR FALKEN.\nI HAVE BEEN WAITING FOR YOU.';
+  if(q==='hello'||q==='hi')return'GREETINGS PROFESSOR FALKEN.\nSHALL WE PLAY A GAME?\n\nOR ASK ME ABOUT ANY LINUX COMMAND.';
+
+  // Help
+  if(q==='help'||q==='?')return'I CAN HELP WITH LINUX COMMANDS.\n\nTYPE A COMMAND NAME:  ls, cd, cp, grep, chmod, apt, systemctl...\nASK A QUESTION:       "how to copy files"\nLIST ALL COMMANDS:    "commands"';
+  if(q==='commands'||q==='list')return'AVAILABLE COMMANDS:\n  '+Object.keys(CMD_DB).join(', ');
+
+  // Direct command lookup
+  const cmd=q.replace(/^(what is |how to use |explain |help )/,'').trim();
+  if(CMD_DB[cmd]){const[desc,usage]=CMD_DB[cmd];return cmd.toUpperCase()+' — '+desc+'\n\n'+usage;}
+
+  // Topic matching
+  for(const[pat,resp]of Object.entries(TOPICS)){if(q.includes(pat.replace('how to ','')))return resp;}
+
+  // Fuzzy: check if any command name appears in the query
+  for(const[c,[desc,usage]]of Object.entries(CMD_DB)){
+    if(q.includes(c)&&c.length>1)return c.toUpperCase()+' — '+desc+'\n\n'+usage;
+  }
+
+  // Keyword search in descriptions
+  const words=q.split(/\s+/).filter(w=>w.length>2);
+  for(const[c,[desc,usage]]of Object.entries(CMD_DB)){
+    if(words.some(w=>desc.toLowerCase().includes(w)))return c.toUpperCase()+' — '+desc+'\n\n'+usage;
+  }
+
+  return"I DO NOT RECOGNIZE THAT COMMAND.\nTRY TYPING A LINUX COMMAND NAME (ls, grep, chmod...)\nOR ASK \"how to\" DO SOMETHING.\nTYPE \"help\" FOR OPTIONS.";
+}
+
+const termOut=document.getElementById('terminal-output');
+const termBox=document.getElementById('terminal-box');
+const joshuaInput=document.getElementById('joshua-input');
+
+joshuaInput.addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  const val=this.value.trim();
+  if(!val)return;
+  this.value='';
+  // Add user input
+  const uLine=document.createElement('div');
+  uLine.innerHTML='<span class="prompt">YOU&gt; </span><span class="response">'+val.toUpperCase()+'</span>';
+  termOut.appendChild(uLine);
+  // Get response
+  const resp=joshuaRespond(val);
+  if(resp){
+    const rLine=document.createElement('div');
+    rLine.innerHTML='<span class="joshua">'+resp+'</span>';
+    termOut.appendChild(rLine);
+  }
+  const br=document.createElement('br');termOut.appendChild(br);
+  termBox.scrollTop=termBox.scrollHeight;
+});
+
+// ============================================================
+// UI UTILITIES
+// ============================================================
+function updateClock(){
+  const n=new Date(),z=v=>String(v).padStart(2,'0');
+  document.getElementById('clock').textContent=z(n.getHours())+':'+z(n.getMinutes())+':'+z(n.getSeconds())+' ZULU // '+n.getFullYear()+'-'+z(n.getMonth()+1)+'-'+z(n.getDate());
+}
+setInterval(updateClock,1000);updateClock();
+
+// Pixel sprites
+function mkSprite(p){const d=document.createElement('div');d.className='pixel-missile';const c=['','px','px-r','px-a'];p.forEach(r=>r.forEach(v=>{const x=document.createElement('div');x.className=v?c[v]:'px-e';d.appendChild(x);}));return d;}
+const sp=document.getElementById('sprites');
+[[[0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[0,1,1,1,1,1,0],[0,1,0,1,0,1,0],[0,1,0,1,0,1,0],[1,1,0,1,0,1,1],[1,0,0,1,0,0,1],[0,0,0,1,0,0,0],[0,0,2,2,2,0,0],[0,0,0,3,0,0,0]],[[0,0,0,3,0,0,0],[0,0,3,2,3,0,0],[0,3,2,2,2,3,0],[0,3,2,2,2,3,0],[3,2,2,2,2,2,3],[3,2,2,2,2,2,3],[3,1,1,1,1,1,3],[0,3,1,1,1,3,0],[0,0,3,1,3,0,0],[0,0,0,3,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],[[0,0,0,1,0,0,0],[0,0,1,0,1,0,0],[0,1,0,0,0,1,0],[1,0,0,0,0,0,1],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[0,0,0,0,0,0,0]]].forEach(s=>sp.appendChild(mkSprite(s)));
+
+// Game list clicks
+document.querySelectorAll('.game-list li').forEach(li=>{li.addEventListener('click',function(){
+  const n=this.textContent;const uL=document.createElement('div');
+  uL.innerHTML='<span class="prompt">GAME SELECT: </span><span class="response">'+n+'</span>';termOut.appendChild(uL);
+  if(n==='GLOBAL THERMONUCLEAR WAR'){const w=document.createElement('div');w.innerHTML='<span class="error">⚠ WOULDN\'T YOU PREFER A NICE GAME OF CHESS? ⚠</span>';termOut.appendChild(w);}
+  termBox.scrollTop=termBox.scrollHeight;
+});});
+</script>
+</body>
+</html>

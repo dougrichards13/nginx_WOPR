@@ -1,0 +1,23 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Local config / secrets
+*.local
+.env
+config.local.sh
+
+# Build artifacts
+*.tmp
+*.bak
+
+# Stats output (runtime only)
+stats.json
