@@ -2,7 +2,7 @@
 
 > *"A strange game. The only winning move is not to play."*
 
-A retro **War Games** (1983) inspired system monitoring dashboard targeting a Raspberry Pi designed to replace the default nginx landing page with a fully functional command center.
+A retro **War Games** (1983) inspired system monitor. The dashboard targets a Raspberry Pi running Nginx and replaces the default nginx landing page with a fully functional command center. I built this using my favorite TUI (Warp) just for fun. I have been working on a build sheet for a home lab and thought it would be cool to have a command center screen running on top of the rack. The chatbot is currently just a small library but I plan to expand that to the Smart Factory Omnis bot with it's own TUI inline so I can work directly from the dashboard. As I add more nodes the center will expand to toggle across the network and I will add Tailwind to make it globablly available and likely run a local ledger for passwordless security. No matter where this one goes I had a ton of fun building it over a few days. War Games is still a great movie and the command center in the movie is still some of my favorite visual design of the era.
 
 Live telemetry. Real attack data. Playable retro games. CRT scanlines. What more could you want?
 
