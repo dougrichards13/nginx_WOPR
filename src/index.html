@@ -92,6 +92,19 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 @media(max-width:900px){
 .grid{grid-template-columns:1fr;grid-template-rows:auto;}
 .world-map-panel,.system-status,.defcon-panel,.metrics-panel,.netops-panel,.threat-panel,.games-panel{grid-column:1;grid-row:auto;}}
+/* GAME MODAL */
+.game-modal{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,.92);z-index:10000;display:flex;align-items:center;justify-content:center;}
+.game-modal-inner{background:var(--bg);border:1px solid var(--green);padding:15px;max-width:440px;width:95%;box-shadow:0 0 40px rgba(50,255,50,.2),inset 0 0 60px rgba(0,0,0,.5);}
+.game-modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(50,255,50,.3);padding-bottom:8px;}
+.game-modal-hdr span{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--green);}
+.game-close{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--red);background:none;border:1px solid var(--red);padding:4px 8px;cursor:pointer;}
+.game-close:hover{background:rgba(255,50,50,.2);}
+#game-canvas{display:block;margin:0 auto;border:1px solid rgba(50,255,50,.3);image-rendering:pixelated;max-width:100%;}
+.game-status{font-family:'VT323',monospace;font-size:18px;color:var(--amber);text-align:center;margin-top:8px;min-height:22px;}
+.game-instr{font-family:'VT323',monospace;font-size:14px;color:rgba(50,255,50,.5);text-align:center;margin-top:4px;}
+.game-list li.playable{color:var(--green);cursor:pointer;text-shadow:0 0 6px rgba(50,255,50,.4);}
+.game-list li.playable::before{content:'▶ ';}
+.game-list li.playable:hover{color:#fff;text-shadow:0 0 12px rgba(50,255,50,.8);}
 </style>
 </head>
 <body>
@@ -189,9 +202,11 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
   <div class="panel games-panel">
     <div class="panel-title">◈ AVAILABLE GAMES</div>
     <ul class="game-list">
-      <li>CHESS</li><li>CHECKERS</li><li>BACKGAMMON</li><li>POKER</li>
-      <li>FIGHTER COMBAT</li><li>GUERRILLA ENGAGE</li><li>DESERT WARFARE</li>
-      <li>AIR-TO-GROUND</li><li>THEATERWIDE BIOWAR</li>
+      <li class="playable" data-game="tictactoe">TIC-TAC-TOE</li>
+      <li class="playable" data-game="missile">MISSILE COMMAND</li>
+      <li class="playable" data-game="snake">SNAKE</li>
+      <li>CHESS</li><li>CHECKERS</li><li>BACKGAMMON</li>
+      <li>FIGHTER COMBAT</li><li>DESERT WARFARE</li>
       <li class="highlight">GLOBAL THERMONUCLEAR WAR</li>
     </ul>
   </div>
@@ -218,6 +233,15 @@ TYPE "help" FOR AVAILABLE TOPICS OR ASK ME ANYTHING ABOUT LINUX.</span><br>
   <span style="color:var(--green)" id="data-status">● CONNECTING...</span>
   <span id="last-update">LAST: --</span>
 </div>
+</div>
+<!-- GAME MODAL -->
+<div id="game-modal" class="game-modal" style="display:none">
+  <div class="game-modal-inner">
+    <div class="game-modal-hdr"><span id="game-title">GAME</span><button id="game-close" class="game-close">✕ ABORT</button></div>
+    <canvas id="game-canvas"></canvas>
+    <div id="game-status" class="game-status"></div>
+    <div id="game-instr" class="game-instr"></div>
+  </div>
 </div>
 <script>
 // ============================================================
@@ -549,8 +573,179 @@ function mkSprite(p){const d=document.createElement('div');d.className='pixel-mi
 const sp=document.getElementById('sprites');
 [[[0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[0,1,1,1,1,1,0],[0,1,0,1,0,1,0],[0,1,0,1,0,1,0],[1,1,0,1,0,1,1],[1,0,0,1,0,0,1],[0,0,0,1,0,0,0],[0,0,2,2,2,0,0],[0,0,0,3,0,0,0]],[[0,0,0,3,0,0,0],[0,0,3,2,3,0,0],[0,3,2,2,2,3,0],[0,3,2,2,2,3,0],[3,2,2,2,2,2,3],[3,2,2,2,2,2,3],[3,1,1,1,1,1,3],[0,3,1,1,1,3,0],[0,0,3,1,3,0,0],[0,0,0,3,0,0,0],[0,0,0,0,0,0,0],[0,0,0,0,0,0,0]],[[0,0,0,1,0,0,0],[0,0,1,0,1,0,0],[0,1,0,0,0,1,0],[1,0,0,0,0,0,1],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,0,1,0,0,0],[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[0,0,0,0,0,0,0]]].forEach(s=>sp.appendChild(mkSprite(s)));
 
+// ============================================================
+// MINI-GAMES ENGINE
+// ============================================================
+const gameModal=document.getElementById('game-modal');
+const gameCanvas=document.getElementById('game-canvas');
+const gameStatus=document.getElementById('game-status');
+const gameTitleEl=document.getElementById('game-title');
+const gameInstr=document.getElementById('game-instr');
+let activeGame=null;
+
+function closeGame(){
+  if(activeGame&&activeGame.cleanup)activeGame.cleanup();
+  activeGame=null;gameModal.style.display='none';gameCanvas.onclick=null;
+}
+document.getElementById('game-close').onclick=closeGame;
+gameModal.addEventListener('click',function(e){if(e.target===gameModal)closeGame();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&gameModal.style.display==='flex')closeGame();});
+
+// --- TIC-TAC-TOE vs JOSHUA ---
+function initTicTacToe(){
+  const S=300;gameCanvas.width=S;gameCanvas.height=S;
+  const ctx=gameCanvas.getContext('2d');
+  let board=Array(9).fill(0),over=false;
+  const cs=S/3;
+  function draw(){
+    ctx.clearRect(0,0,S,S);
+    ctx.strokeStyle='#33ff33';ctx.lineWidth=2;
+    for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(i*cs,0);ctx.lineTo(i*cs,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*cs);ctx.lineTo(S,i*cs);ctx.stroke();}
+    for(let i=0;i<9;i++){
+      const x=(i%3)*cs+cs/2,y=Math.floor(i/3)*cs+cs/2;
+      if(board[i]===1){ctx.strokeStyle='#33ff33';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-30,y-30);ctx.lineTo(x+30,y+30);ctx.stroke();ctx.beginPath();ctx.moveTo(x+30,y-30);ctx.lineTo(x-30,y+30);ctx.stroke();}
+      else if(board[i]===2){ctx.strokeStyle='#ffaa00';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,30,0,Math.PI*2);ctx.stroke();}
+    }
+  }
+  function win(p){return[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(([a,b,c])=>board[a]===p&&board[b]===p&&board[c]===p);}
+  function ai(){
+    const tryW=p=>{for(let i=0;i<9;i++){if(!board[i]){board[i]=p;if(win(p)){board[i]=0;return i;}board[i]=0;}}return-1;};
+    let m=tryW(2);if(m>=0){board[m]=2;return;}
+    m=tryW(1);if(m>=0){board[m]=2;return;}
+    if(!board[4]){board[4]=2;return;}
+    const cor=[0,2,6,8].filter(i=>!board[i]);
+    if(cor.length){board[cor[Math.floor(Math.random()*cor.length)]]=2;return;}
+    const emp=board.map((v,i)=>v?-1:i).filter(i=>i>=0);
+    if(emp.length)board[emp[Math.floor(Math.random()*emp.length)]]=2;
+  }
+  gameCanvas.onclick=(e)=>{
+    if(over){board=Array(9).fill(0);over=false;gameStatus.textContent='YOUR MOVE, PROFESSOR.';draw();return;}
+    const r=gameCanvas.getBoundingClientRect();
+    const col=Math.floor((e.clientX-r.left)/(r.width/3)),row=Math.floor((e.clientY-r.top)/(r.height/3));
+    const i=row*3+col;if(i<0||i>8||board[i])return;
+    board[i]=1;draw();
+    if(win(1)){gameStatus.textContent='YOU WIN... IMPOSSIBLE. CLICK TO PLAY AGAIN.';over=true;return;}
+    if(board.every(c=>c)){gameStatus.textContent='A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY.';over=true;return;}
+    ai();draw();
+    if(win(2)){gameStatus.textContent='JOSHUA WINS. SHALL WE PLAY AGAIN?';over=true;return;}
+    if(board.every(c=>c)){gameStatus.textContent='A STRANGE GAME. THE ONLY WINNING MOVE IS NOT TO PLAY.';over=true;return;}
+  };
+  gameStatus.textContent='YOUR MOVE, PROFESSOR.';
+  gameTitleEl.textContent='TIC-TAC-TOE vs JOSHUA';
+  gameInstr.textContent='CLICK A SQUARE. YOU ARE X (GREEN). JOSHUA IS O (AMBER).';
+  gameModal.style.display='flex';draw();
+  activeGame={cleanup:()=>{gameCanvas.onclick=null;}};
+}
+
+// --- MISSILE COMMAND ---
+function initMissileCmd(){
+  const W=400,H=300;gameCanvas.width=W;gameCanvas.height=H;
+  const ctx=gameCanvas.getContext('2d');
+  const cX=[60,120,170,230,280,340];let alive=[1,1,1,1,1,1];
+  let missiles=[],counters=[],expl=[],score=0,wave=1,spT=0,over=false,intv;
+  gameCanvas.onclick=(e)=>{
+    if(over){initMissileCmd();return;}
+    const r=gameCanvas.getBoundingClientRect();
+    const tx=(e.clientX-r.left)*(W/r.width),ty=(e.clientY-r.top)*(H/r.height);
+    counters.push({sx:W/2,sy:H-20,tx,ty,x:W/2,y:H-20,speed:5,done:false});
+  };
+  function tick(){
+    if(over)return;
+    spT++;
+    if(spT>Math.max(12,55-wave*5)){
+      spT=0;const ti=Math.floor(Math.random()*6),ox=Math.random()*W;
+      missiles.push({ox,x:ox,y:0,tx:cX[ti],ty:H-15,speed:.4+wave*.12});
+    }
+    missiles.forEach(m=>{
+      const dx=m.tx-m.x,dy=m.ty-m.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<m.speed){const ci=cX.indexOf(m.tx);if(ci>=0)alive[ci]=0;m.dead=true;expl.push({x:m.tx,y:m.ty,r:0,mx:20,g:true});}
+      else{m.x+=dx/d*m.speed;m.y+=dy/d*m.speed;}
+    });
+    counters.forEach(c=>{
+      if(c.done)return;const dx=c.tx-c.x,dy=c.ty-c.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<c.speed){c.done=true;c.t=Date.now();c.x=c.tx;c.y=c.ty;expl.push({x:c.tx,y:c.ty,r:0,mx:35,g:true});}
+      else{c.x+=dx/d*c.speed;c.y+=dy/d*c.speed;}
+    });
+    expl.forEach(ex=>{
+      if(ex.g){ex.r+=1.5;if(ex.r>=ex.mx)ex.g=false;}else ex.r-=.5;
+      missiles.forEach(m=>{if(!m.dead){const dx=m.x-ex.x,dy=m.y-ex.y;if(Math.sqrt(dx*dx+dy*dy)<ex.r){m.dead=true;score+=10;}}});
+    });
+    missiles=missiles.filter(m=>!m.dead);expl=expl.filter(e=>e.r>0);
+    counters=counters.filter(c=>!c.done||Date.now()-c.t<3000);
+    if(!alive.some(Boolean)){over=true;gameStatus.textContent='ALL CITIES DESTROYED. SCORE: '+score+'. CLICK TO RETRY.';}
+    else{gameStatus.textContent='WAVE '+wave+' │ SCORE: '+score+' │ CITIES: '+alive.filter(Boolean).length;if(score>=wave*80)wave++;}
+    draw();
+  }
+  function draw(){
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#1a3a1a';ctx.fillRect(0,H-10,W,10);
+    cX.forEach((x,i)=>{
+      if(alive[i]){ctx.fillStyle='#33ff33';ctx.fillRect(x-8,H-22,4,12);ctx.fillRect(x-2,H-27,4,17);ctx.fillRect(x+4,H-20,4,10);}
+      else{ctx.fillStyle='#333';ctx.fillRect(x-6,H-12,12,2);}
+    });
+    ctx.fillStyle='#ffaa00';ctx.fillRect(W/2-6,H-16,12,6);
+    ctx.beginPath();ctx.moveTo(W/2-8,H-10);ctx.lineTo(W/2+8,H-10);ctx.lineTo(W/2,H-20);ctx.closePath();ctx.fill();
+    missiles.forEach(m=>{ctx.strokeStyle='#ff3333';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(m.ox,0);ctx.lineTo(m.x,m.y);ctx.stroke();ctx.fillStyle='#ff3333';ctx.beginPath();ctx.arc(m.x,m.y,2,0,Math.PI*2);ctx.fill();});
+    counters.forEach(cm=>{ctx.strokeStyle='#33ff33';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cm.sx,cm.sy);ctx.lineTo(cm.x,cm.y);ctx.stroke();if(!cm.done){ctx.fillStyle='#33ff33';ctx.beginPath();ctx.arc(cm.x,cm.y,2,0,Math.PI*2);ctx.fill();}});
+    expl.forEach(ex=>{const a=Math.min(1,ex.r/ex.mx);ctx.fillStyle='rgba(255,170,0,'+(a*.4)+')';ctx.beginPath();ctx.arc(ex.x,ex.y,ex.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(255,170,0,'+a+')';ctx.lineWidth=1;ctx.beginPath();ctx.arc(ex.x,ex.y,ex.r,0,Math.PI*2);ctx.stroke();});
+  }
+  intv=setInterval(tick,33);
+  gameTitleEl.textContent='MISSILE COMMAND';
+  gameStatus.textContent='CLICK TO FIRE. DEFEND THE CITIES.';
+  gameInstr.textContent='CLICK TO LAUNCH COUNTER-MISSILES. PROTECT ALL 6 CITIES.';
+  gameModal.style.display='flex';
+  activeGame={cleanup:()=>{clearInterval(intv);gameCanvas.onclick=null;}};
+}
+
+// --- SNAKE ---
+function initSnake(){
+  const S=300,G=15,T=S/G;gameCanvas.width=S;gameCanvas.height=S;
+  const ctx=gameCanvas.getContext('2d');
+  let snake=[{x:10,y:10}],dir={x:1,y:0},food,score=0,over=false,intv;
+  function newFood(){let f;do{f={x:Math.floor(Math.random()*T),y:Math.floor(Math.random()*T)};}while(snake.some(s=>s.x===f.x&&s.y===f.y));return f;}
+  food=newFood();
+  const kh=(e)=>{
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
+    if(e.key==='ArrowUp'&&dir.y!==1)dir={x:0,y:-1};
+    if(e.key==='ArrowDown'&&dir.y!==-1)dir={x:0,y:1};
+    if(e.key==='ArrowLeft'&&dir.x!==1)dir={x:-1,y:0};
+    if(e.key==='ArrowRight'&&dir.x!==-1)dir={x:1,y:0};
+  };
+  document.addEventListener('keydown',kh);
+  function tick(){
+    if(over)return;
+    const h={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+    if(h.x<0||h.x>=T||h.y<0||h.y>=T||snake.some(s=>s.x===h.x&&s.y===h.y)){
+      over=true;gameStatus.textContent='GAME OVER. SCORE: '+score+'. CLICK TO RESTART.';
+      gameCanvas.onclick=()=>{activeGame.cleanup();initSnake();};return;
+    }
+    snake.unshift(h);
+    if(h.x===food.x&&h.y===food.y){score++;food=newFood();gameStatus.textContent='SCORE: '+score;}
+    else snake.pop();
+    draw();
+  }
+  function draw(){
+    ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,S,S);
+    ctx.strokeStyle='rgba(50,255,50,.06)';
+    for(let i=0;i<=T;i++){ctx.beginPath();ctx.moveTo(i*G,0);ctx.lineTo(i*G,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*G);ctx.lineTo(S,i*G);ctx.stroke();}
+    snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#33ff33':'rgba(50,255,50,.7)';ctx.fillRect(s.x*G+1,s.y*G+1,G-2,G-2);});
+    ctx.fillStyle='#ff3333';ctx.fillRect(food.x*G+1,food.y*G+1,G-2,G-2);
+  }
+  intv=setInterval(tick,100);
+  gameTitleEl.textContent='SNAKE';
+  gameStatus.textContent='SCORE: 0';
+  gameInstr.textContent='ARROW KEYS TO MOVE. EAT THE RED TARGETS.';
+  gameModal.style.display='flex';
+  activeGame={cleanup:()=>{clearInterval(intv);document.removeEventListener('keydown',kh);gameCanvas.onclick=null;}};
+}
+
+// Game launcher map
+const GAMES={tictactoe:initTicTacToe,missile:initMissileCmd,snake:initSnake};
+
 // Game list clicks
 document.querySelectorAll('.game-list li').forEach(li=>{li.addEventListener('click',function(){
+  const gid=this.dataset.game;
+  if(gid&&GAMES[gid]){GAMES[gid]();return;}
   const n=this.textContent;const uL=document.createElement('div');
   uL.innerHTML='<span class="prompt">GAME SELECT: </span><span class="response">'+n+'</span>';termOut.appendChild(uL);
   if(n==='GLOBAL THERMONUCLEAR WAR'){const w=document.createElement('div');w.innerHTML='<span class="error">⚠ WOULDN\'T YOU PREFER A NICE GAME OF CHESS? ⚠</span>';termOut.appendChild(w);}
