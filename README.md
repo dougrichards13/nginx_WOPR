@@ -1,8 +1,8 @@
-# 🖥️ WOPR — War Operation Plan Response Dashboard
+# 🖥️ Nginx Wargames WOPR dashboard
 
 > *"A strange game. The only winning move is not to play."*
 
-A retro **War Games** (1983) inspired system monitoring dashboard for Raspberry Pi, designed to replace the default nginx landing page with a fully functional command center.
+A retro **War Games** (1983) inspired system monitoring dashboard targeting a Raspberry Pi designed to replace the default nginx landing page with a fully functional command center.
 
 Live telemetry. Real attack data. Playable retro games. CRT scanlines. What more could you want?
 
@@ -17,12 +17,12 @@ Live telemetry. Real attack data. Playable retro games. CRT scanlines. What more
 - **Live System Telemetry** — CPU, memory, disk, network stats updated every 3 seconds
 - **DEFCON Thermal Monitor** — CPU temperature mapped to DEFCON levels with throttle warnings
 - **Global Threat Map** — Natural Earth GeoJSON world map with animated attack arcs, realistic CVE/malware names, and rolling strike counter
-- **Playable Retro Games** — Tic-Tac-Toe vs JOSHUA (movie-accurate!), Missile Command, and Snake — all in CRT-styled pop-up modals
+- **Playable Retro Games** — Tic-Tac-Toe vs JOSHUA (movie-accurate!), Missile Command, and Snake — all in CRT-styled pop-up modals (more to come)
 - **Network Operations Radar** — Real-time RX/TX rates, active connections, with animated radar display
 - **System Log Intercepts** — Live journal log feed displayed in-dashboard
 - **Real SSH Attack Data** — Parses `auth.log` for actual failed login attempts
-- **Interactive JOSHUA Terminal** — In-browser Linux command helper chatbot (pattern-matching, no LLM required). Covers 40+ commands and 20+ "how to" topics. War Games easter eggs included.
-- **Service Status Monitor** — Live status of nginx, SSH, cron, dbus, NTP, journald, network, and the WOPR stats service
+- **Interactive JOSHUA Terminal** — In-browser Linux command helper chatbot (pattern-matching, no LLM required). Covers 40+ commands and 20+ "how to" topics. War Games easter eggs included. I'll add more libraries to this as the homelab build advances.
+- **Service Status Monitor** — Live status of nginx, SSH, cron, dbus, NTP, journald, network, and the WOPR stats service. I plan to add messaging/alerts to this eventually
 - **CRT Aesthetic** — Scanlines, phosphor glow, pixel sprites, VT323 + Press Start 2P fonts
 - **Responsive** — Collapses to single-column on mobile
 
@@ -124,7 +124,7 @@ ssh user@new-pi "git clone https://github.com/dougrichards13/nginx_WOPR.git && c
 ```
 
 **Planned multi-device features (future):**
-- Central "War Room" dashboard aggregating all Pi nodes
+- Central "War Room" dashboard aggregating all equipment nodes - still planning the hardware for the rack but I do want to experiement with gpu clusters and the Reticulum project DataSlayerMedia built on his channel
 - Node discovery / fleet status overview
 - Cross-node alerting (e.g. if a Pi goes offline)
 - Per-node configuration (custom names, DEFCON thresholds, monitored services)
