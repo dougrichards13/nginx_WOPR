@@ -44,8 +44,8 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 .metric-bar{height:10px;background:var(--bg);border:1px solid var(--border);overflow:hidden;}
 .metric-bar-fill{height:100%;background:var(--green);transition:width .5s ease,background .5s ease;}
 .metric-bar-fill.warn{background:var(--amber)}.metric-bar-fill.crit{background:var(--red)}
-.world-map-panel{grid-column:2;grid-row:1/4;min-height:420px;overflow:hidden;position:relative;}
-.map-container{position:relative;width:100%;height:100%;}
+.world-map-panel{grid-column:2;grid-row:1/4;min-height:420px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+.map-container{position:relative;flex:1;width:100%;}
 .map-base-canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
 .threat-map-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;}
 .map-overlay{position:absolute;top:30px;right:10px;font-family:'Press Start 2P',cursive;font-size:8px;text-align:right;line-height:2.2;pointer-events:none;}
@@ -310,7 +310,6 @@ function resizeMap(){
   tmC.width=r.width;tmC.height=r.height;
   renderStaticMap();
 }
-resizeMap();window.addEventListener('resize',resizeMap);
 function geo(lon,lat){return[(lon+180)/360*tmC.width,(90-lat)/180*tmC.height];}
 
 const cities=[
@@ -323,6 +322,7 @@ const cities=[
 ['SINGAPORE',103.8,1.3],['TEL AVIV',34.8,32.1],['CAPE TOWN',18.4,-33.9],['HONG KONG',114.2,22.3],
 ['AMSTERDAM',4.9,52.4],['DUBLIN',-6.3,53.3],['HANOI',105.8,21],['LIMA',-77,-12],
 ];
+resizeMap();window.addEventListener('resize',resizeMap);
 
 // ---- Static map renderer (drawn once, uses GeoJSON) ----
 function renderStaticMap(){
