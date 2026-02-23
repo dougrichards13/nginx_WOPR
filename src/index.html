@@ -46,7 +46,8 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 .metric-bar-fill.warn{background:var(--amber)}.metric-bar-fill.crit{background:var(--red)}
 .world-map-panel{grid-column:2;grid-row:1/4;min-height:420px;overflow:hidden;position:relative;}
 .map-container{position:relative;width:100%;height:100%;}
-.threat-map-canvas{width:100%;height:100%;display:block;}
+.map-base-canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+.threat-map-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;}
 .map-overlay{position:absolute;top:30px;right:10px;font-family:'Press Start 2P',cursive;font-size:8px;text-align:right;line-height:2.2;pointer-events:none;}
 .attack-counter{color:var(--red);font-size:12px;}
 .map-legend{position:absolute;bottom:8px;left:10px;font-size:11px;color:var(--green-dim);pointer-events:none;}
@@ -143,6 +144,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
   <div class="panel world-map-panel">
     <div class="panel-title">◈ GLOBAL THREAT MAP</div>
     <div class="map-container">
+      <canvas id="map-canvas" class="map-base-canvas"></canvas>
       <canvas id="threat-canvas" class="threat-map-canvas"></canvas>
       <div class="map-overlay">
         <div class="attack-counter">ATTACKS: <span id="attack-count">0</span></div>
@@ -296,11 +298,18 @@ async function fetchStats(){
 setInterval(fetchStats,POLL_INTERVAL);setTimeout(fetchStats,500);
 
 // ============================================================
-// THREAT MAP ENGINE
+// THREAT MAP ENGINE — dual canvas: static map + attack overlay
 // ============================================================
+const mapC=document.getElementById('map-canvas'),mapX=mapC.getContext('2d');
 const tmC=document.getElementById('threat-canvas'),tmX=tmC.getContext('2d');
-let attacks=[],totalAtk=0,atkTimes=[];
-function resizeMap(){const r=tmC.parentElement.getBoundingClientRect();tmC.width=r.width;tmC.height=r.height;}
+let attacks=[],totalAtk=0,atkTimes=[],geoData=null;
+
+function resizeMap(){
+  const r=tmC.parentElement.getBoundingClientRect();
+  mapC.width=r.width;mapC.height=r.height;
+  tmC.width=r.width;tmC.height=r.height;
+  renderStaticMap();
+}
 resizeMap();window.addEventListener('resize',resizeMap);
 function geo(lon,lat){return[(lon+180)/360*tmC.width,(90-lat)/180*tmC.height];}
 
@@ -315,29 +324,51 @@ const cities=[
 ['AMSTERDAM',4.9,52.4],['DUBLIN',-6.3,53.3],['HANOI',105.8,21],['LIMA',-77,-12],
 ];
 
-// Improved coastlines with more detail
-const coasts=[
-// N.America
-[[-170,66],[-162,63],[-153,60],[-147,61],[-140,59],[-136,56],[-131,55],[-127,51],[-124,48],[-124,44],[-122,38],[-117,33],[-112,30],[-107,28],[-100,26],[-97,26],[-95,29],[-91,29],[-88,30],[-85,30],[-82,27],[-80,25],[-81,31],[-78,34],[-76,37],[-74,40],[-71,42],[-68,44],[-66,44],[-64,47],[-60,47],[-56,50],[-55,52],[-60,54],[-65,56],[-70,58],[-80,64],[-88,67],[-95,70],[-105,73],[-115,74],[-125,71],[-140,70],[-150,71],[-160,68],[-170,66]],
-// S.America
-[[-80,9],[-77,7],[-75,4],[-72,0],[-69,-2],[-65,-5],[-55,-2],[-50,-3],[-40,-5],[-35,-8],[-38,-13],[-39,-18],[-41,-22],[-44,-23],[-47,-26],[-50,-29],[-53,-33],[-57,-36],[-63,-42],[-66,-46],[-68,-50],[-71,-55],[-74,-52],[-72,-45],[-71,-40],[-70,-34],[-71,-28],[-71,-22],[-72,-16],[-75,-10],[-78,-5],[-80,0],[-80,9]],
-// Europe
-[[-10,36],[-6,37],[0,39],[3,43],[1,46],[-2,48],[-5,48],[-9,43],[-10,44],[-10,52],[-6,54],[-5,58],[0,57],[5,54],[8,54],[10,55],[13,54],[15,54],[18,55],[20,54],[24,55],[26,56],[28,57],[30,60],[27,62],[25,65],[20,67],[18,69],[15,70],[20,70],[25,71],[30,71],[38,69],[42,66],[40,62],[37,58],[32,55],[30,50],[30,45],[28,41],[26,38],[23,36],[15,38],[12,42],[8,44],[5,47],[2,47],[-1,44],[-5,44],[-8,43],[-10,36]],
-// Africa
-[[-15,30],[-17,22],[-17,15],[-15,11],[-10,6],[-5,5],[0,6],[5,5],[9,4],[10,2],[15,2],[20,0],[25,-2],[30,-4],[33,-8],[36,-10],[40,-14],[40,-18],[36,-22],[33,-27],[30,-32],[28,-34],[22,-35],[18,-34],[15,-29],[13,-22],[12,-15],[10,-5],[8,0],[5,5],[0,6],[-5,5],[-10,5],[-15,12],[-15,30]],
-// Asia
-[[30,71],[35,69],[40,66],[45,60],[50,55],[53,50],[55,45],[58,40],[60,37],[62,30],[65,25],[70,21],[73,18],[75,15],[78,12],[80,10],[85,15],[88,22],[92,20],[95,17],[100,14],[103,8],[105,5],[107,3],[110,2],[115,3],[117,8],[120,22],[122,28],[125,35],[128,38],[130,43],[132,38],[135,35],[137,36],[140,42],[142,45],[145,48],[148,53],[155,58],[162,62],[170,66],[180,68]],
-// Japan
-[[130,31],[132,33],[134,34],[136,35],[138,37],[140,40],[141,43],[145,45],[142,43],[140,39],[138,35],[136,34],[134,33],[130,31]],
-// UK+Ireland
-[[-6,50],[-5,52],[-4,54],[-5,55],[-4,57],[-3,58],[-5,58],[-6,55],[-7,54],[-8,52],[-10,52],[-10,54],[-8,55],[-6,56],[-5,58],[-3,58],[0,57],[2,53],[1,51],[0,51],[-2,50],[-5,50],[-6,50]],
-// Australia
-[[115,-15],[120,-14],[125,-13],[130,-12],[135,-14],[138,-16],[140,-17],[143,-19],[146,-20],[149,-23],[152,-26],[153,-28],[153,-32],[151,-34],[149,-37],[144,-38],[140,-38],[136,-35],[133,-33],[128,-30],[122,-25],[118,-21],[115,-18],[114,-16],[115,-15]],
-// Greenland
-[[-55,60],[-48,60],[-42,62],[-30,65],[-22,70],[-18,76],[-25,80],[-38,82],[-50,80],[-55,75],[-55,60]],
-// Indonesia/SE Asia
-[[95,6],[100,3],[104,1],[106,-2],[108,-6],[110,-7],[115,-8],[120,-8],[125,-5],[130,-3],[135,-5],[140,-6],[140,-3],[135,0],[130,2],[125,3],[120,5],[115,5],[110,3],[105,2],[100,4],[95,6]],
-];
+// ---- Static map renderer (drawn once, uses GeoJSON) ----
+function renderStaticMap(){
+  const W=mapC.width,H=mapC.height;
+  if(!W||!H)return;
+  mapX.clearRect(0,0,W,H);
+  // Grid
+  mapX.strokeStyle='rgba(26,77,26,.12)';mapX.lineWidth=.5;
+  for(let lat=-60;lat<=80;lat+=30){const[x1,y1]=geo(-180,lat),[x2]=geo(180,lat);mapX.beginPath();mapX.moveTo(x1,y1);mapX.lineTo(x2,y1);mapX.stroke();}
+  for(let lon=-150;lon<=180;lon+=30){const[x1,y1]=geo(lon,-60),[,y2]=geo(lon,80);mapX.beginPath();mapX.moveTo(x1,y1);mapX.lineTo(x1,y2);mapX.stroke();}
+  // GeoJSON landmasses
+  if(geoData){
+    geoData.features.forEach(f=>{
+      const polys=f.geometry.type==='Polygon'?[f.geometry.coordinates]:f.geometry.coordinates;
+      polys.forEach(poly=>{
+        poly.forEach(ring=>{
+          mapX.beginPath();
+          ring.forEach((pt,i)=>{
+            const[x,y]=geo(pt[0],pt[1]);
+            i===0?mapX.moveTo(x,y):mapX.lineTo(x,y);
+          });
+          mapX.closePath();
+          mapX.fillStyle='rgba(26,77,26,.25)';
+          mapX.fill();
+          mapX.strokeStyle='rgba(26,180,26,.5)';
+          mapX.lineWidth=.8;
+          mapX.stroke();
+        });
+      });
+    });
+  }
+  // City dots + labels on the static layer
+  cities.forEach(([n,lon,lat])=>{
+    const[x,y]=geo(lon,lat);
+    mapX.beginPath();mapX.arc(x,y,4,0,Math.PI*2);mapX.fillStyle='rgba(50,255,50,.08)';mapX.fill();
+    mapX.beginPath();mapX.arc(x,y,1.5,0,Math.PI*2);mapX.fillStyle='#1aaa1a';mapX.fill();
+    if(W>400){
+      mapX.font='6px monospace';mapX.fillStyle='rgba(50,255,50,.4)';
+      const lx=(lon>0&&lon<50)?x-mapX.measureText(n).width-4:x+5;
+      mapX.fillText(n,lx,y+3);
+    }
+  });
+}
+
+// Fetch Natural Earth GeoJSON (public domain, served locally)
+fetch('/data/ne_110m_land.json').then(r=>r.json()).then(d=>{geoData=d;renderStaticMap();}).catch(()=>{});
 
 const atkNames=['CVE-2024-3400 PAN-OS','Log4Shell RCE','WannaCry Variant','Emotet Loader','Cobalt Strike Beacon','SIMATIC WinCC Exploit','Mirai Botnet Scan','ZeroLogon Attempt','BlueKeep RDP','SolarWinds SUNBURST','PrintNightmare','ProxyShell Exchange','MOVEit SQLi','Apache Struts RCE','Shellshock CGI','Heartbleed Probe','EternalBlue SMB','Ryuk Ransomware','LockBit 3.0 Drop','BlackCat ALPHV','IcedID Downloader','QakBot C2','Brute Force SSH','DDoS Amplification','DNS Tunneling','Credential Stuffing','Port Scan Recon','SQL Injection','XSS Reflected','Path Traversal'];
 const atkTypes=[{name:'MALWARE',color:'#ff3333'},{name:'EXPLOIT',color:'#ffaa00'},{name:'PHISHING',color:'#ff6600'},{name:'SCAN',color:'#33ff33'}];
@@ -351,33 +382,12 @@ function spawnAtk(){
   attacks.push({sx,sy,dx,dy,mx:(sx+dx)/2,my:Math.min(sy,dy)-dist*(0.2+Math.random()*.3),progress:0,speed:.006+Math.random()*.014,color:type.color,impact:0,name:atkNames[Math.floor(Math.random()*atkNames.length)],src:s[0],dst:d[0]});
   totalAtk++;atkTimes.push(Date.now());
   document.getElementById('attack-count').textContent=totalAtk;
-  // Rolling rate
   const now=Date.now();atkTimes=atkTimes.filter(t=>now-t<60000);
   document.getElementById('attack-rate').textContent=atkTimes.length;
 }
-function drawMap(){
+// ---- Attack overlay (redrawn each frame, transparent canvas) ----
+function drawAttacks(){
   const W=tmC.width,H=tmC.height;tmX.clearRect(0,0,W,H);
-  // Grid
-  tmX.strokeStyle='rgba(26,77,26,.1)';tmX.lineWidth=.5;
-  for(let lat=-60;lat<=80;lat+=30){const[x1,y1]=geo(-180,lat),[x2,y2]=geo(180,lat);tmX.beginPath();tmX.moveTo(x1,y1);tmX.lineTo(x2,y2);tmX.stroke();}
-  for(let lon=-150;lon<=180;lon+=30){const[x1,y1]=geo(lon,-60),[x2,y2]=geo(lon,80);tmX.beginPath();tmX.moveTo(x1,y1);tmX.lineTo(x2,y2);tmX.stroke();}
-  // Coastlines
-  tmX.strokeStyle='rgba(26,140,26,.45)';tmX.lineWidth=1.2;tmX.setLineDash([2,2]);
-  coasts.forEach(c=>{tmX.beginPath();const[fx,fy]=geo(c[0][0],c[0][1]);tmX.moveTo(fx,fy);for(let i=1;i<c.length;i++){const[px,py]=geo(c[i][0],c[i][1]);tmX.lineTo(px,py);}tmX.closePath();tmX.stroke();});
-  tmX.setLineDash([]);
-  // Cities - smart label positioning
-  cities.forEach(([n,lon,lat],idx)=>{
-    const[x,y]=geo(lon,lat);
-    tmX.beginPath();tmX.arc(x,y,4,0,Math.PI*2);tmX.fillStyle='rgba(50,255,50,.08)';tmX.fill();
-    tmX.beginPath();tmX.arc(x,y,1.5,0,Math.PI*2);tmX.fillStyle='#1aaa1a';tmX.fill();
-    if(W>400){
-      tmX.font='6px monospace';tmX.fillStyle='rgba(50,255,50,.35)';
-      // Offset labels to avoid overlap - alternate left/right for dense regions
-      const lx=(lon>0&&lon<50)?x-tmX.measureText(n).width-4:x+5;
-      tmX.fillText(n,lx,y+3);
-    }
-  });
-  // Attacks
   attacks.forEach(a=>{
     a.progress+=a.speed;const t=Math.min(a.progress,1);
     tmX.beginPath();tmX.moveTo(a.sx,a.sy);tmX.quadraticCurveTo(a.mx,a.my,a.dx,a.dy);tmX.strokeStyle=a.color+'10';tmX.lineWidth=1;tmX.stroke();
@@ -389,10 +399,10 @@ function drawMap(){
     if(t>=1){a.impact+=.04;const r=10+a.impact*18,ia=Math.max(0,.4-a.impact);tmX.globalAlpha=ia;tmX.beginPath();tmX.arc(a.dx,a.dy,r,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();tmX.globalAlpha=1;}
   });
   attacks=attacks.filter(a=>a.impact<1);
-  requestAnimationFrame(drawMap);
+  requestAnimationFrame(drawAttacks);
 }
 function schedAtk(){spawnAtk();setTimeout(schedAtk,500+Math.random()*1500);}
-drawMap();setTimeout(schedAtk,800);
+drawAttacks();setTimeout(schedAtk,800);
 
 // ============================================================
 // JOSHUA TERMINAL - LINUX COMMAND ASSISTANT

@@ -41,7 +41,7 @@ for f in index.html wopr-stats.sh wopr-stats.service; do
 done
 
 # Check prerequisites
-echo -e "${AMBER}[1/6]${NC} Checking prerequisites..."
+echo -e "${AMBER}[1/7]${NC} Checking prerequisites..."
 if ! command -v nginx &>/dev/null; then
     echo -e "${RED}  nginx not found. Install with: sudo apt install nginx${NC}"
     exit 1
@@ -55,25 +55,32 @@ fi
 echo -e "  ${GREEN}✓${NC} bc available"
 
 # Install dashboard
-echo -e "${AMBER}[2/6]${NC} Installing dashboard..."
+echo -e "${AMBER}[2/7]${NC} Installing dashboard..."
 cp "${SRC_DIR}/index.html" /var/www/html/index.nginx-debian.html
 echo -e "  ${GREEN}✓${NC} Dashboard installed to /var/www/html/"
 
 # Install stats script
-echo -e "${AMBER}[3/6]${NC} Installing stats gatherer..."
+echo -e "${AMBER}[3/7]${NC} Installing stats gatherer..."
 cp "${SRC_DIR}/wopr-stats.sh" /usr/local/bin/wopr-stats.sh
 chmod +x /usr/local/bin/wopr-stats.sh
 # Fix Windows line endings if present
 sed -i 's/\r$//' /usr/local/bin/wopr-stats.sh
 echo -e "  ${GREEN}✓${NC} Stats script installed to /usr/local/bin/"
 
-# Create API directory
-echo -e "${AMBER}[4/6]${NC} Creating API directory..."
+# Create API + data directories and install map data
+echo -e "${AMBER}[4/7]${NC} Installing data files..."
 mkdir -p /var/www/html/api
-echo -e "  ${GREEN}✓${NC} /var/www/html/api/ ready"
+mkdir -p /var/www/html/data
+if [ -f "${SRC_DIR}/data/ne_110m_land.json" ]; then
+    cp "${SRC_DIR}/data/ne_110m_land.json" /var/www/html/data/ne_110m_land.json
+    echo -e "  ${GREEN}✓${NC} World map data installed"
+else
+    echo -e "  ${AMBER}!${NC} Map data not found (map will show grid only)"
+fi
+echo -e "  ${GREEN}✓${NC} /var/www/html/api/ and /data/ ready"
 
 # Install systemd service
-echo -e "${AMBER}[5/6]${NC} Configuring systemd service..."
+echo -e "${AMBER}[5/7]${NC} Configuring systemd service..."
 cp "${SRC_DIR}/wopr-stats.service" /etc/systemd/system/wopr-stats.service
 sed -i 's/\r$//' /etc/systemd/system/wopr-stats.service
 systemctl daemon-reload
@@ -81,8 +88,13 @@ systemctl enable wopr-stats >/dev/null 2>&1
 systemctl restart wopr-stats
 echo -e "  ${GREEN}✓${NC} wopr-stats service enabled and started"
 
+# Nginx reload (pick up new /data/ location)
+echo -e "${AMBER}[6/7]${NC} Reloading nginx..."
+nginx -t >/dev/null 2>&1 && systemctl reload nginx
+echo -e "  ${GREEN}✓${NC} nginx reloaded"
+
 # Verify
-echo -e "${AMBER}[6/6]${NC} Verifying installation..."
+echo -e "${AMBER}[7/7]${NC} Verifying installation..."
 sleep 3
 if systemctl is-active --quiet wopr-stats; then
     echo -e "  ${GREEN}✓${NC} wopr-stats service is running"
