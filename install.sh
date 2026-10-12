@@ -33,7 +33,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${SCRIPT_DIR}/src"
 
 # Verify source files exist
-for f in index.html wopr-stats.sh wopr-stats.service; do
+for f in index.html wopr-stats.sh wopr-stats.service wopr-speak.cgi wopr-speak.conf; do
     if [ ! -f "${SRC_DIR}/${f}" ]; then
         echo -e "${RED}ERROR: Missing ${SRC_DIR}/${f}${NC}"
         exit 1
@@ -41,7 +41,7 @@ for f in index.html wopr-stats.sh wopr-stats.service; do
 done
 
 # Check prerequisites
-echo -e "${AMBER}[1/7]${NC} Checking prerequisites..."
+echo -e "${AMBER}[1/8]${NC} Checking prerequisites..."
 if ! command -v nginx &>/dev/null; then
     echo -e "${RED}  nginx not found. Install with: sudo apt install nginx${NC}"
     exit 1
@@ -54,13 +54,29 @@ if ! command -v bc &>/dev/null; then
 fi
 echo -e "  ${GREEN}✓${NC} bc available"
 
+VOICE_DEPS_OK=1
+if ! command -v espeak-ng &>/dev/null; then
+    echo -e "${AMBER}  espeak-ng not found, installing...${NC}"
+    apt-get install -y espeak-ng >/dev/null 2>&1 || VOICE_DEPS_OK=0
+fi
+if ! command -v fcgiwrap &>/dev/null; then
+    echo -e "${AMBER}  fcgiwrap not found, installing...${NC}"
+    apt-get install -y fcgiwrap >/dev/null 2>&1 || VOICE_DEPS_OK=0
+fi
+if [ "$VOICE_DEPS_OK" -eq 1 ] && command -v espeak-ng &>/dev/null && command -v fcgiwrap &>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} espeak-ng and fcgiwrap available"
+else
+    VOICE_DEPS_OK=0
+    echo -e "  ${AMBER}!${NC} Could not install espeak-ng/fcgiwrap; JOSHUA voice will be skipped"
+fi
+
 # Install dashboard
-echo -e "${AMBER}[2/7]${NC} Installing dashboard..."
+echo -e "${AMBER}[2/8]${NC} Installing dashboard..."
 cp "${SRC_DIR}/index.html" /var/www/html/index.nginx-debian.html
 echo -e "  ${GREEN}✓${NC} Dashboard installed to /var/www/html/"
 
 # Install stats script
-echo -e "${AMBER}[3/7]${NC} Installing stats gatherer..."
+echo -e "${AMBER}[3/8]${NC} Installing stats gatherer..."
 cp "${SRC_DIR}/wopr-stats.sh" /usr/local/bin/wopr-stats.sh
 chmod +x /usr/local/bin/wopr-stats.sh
 # Fix Windows line endings if present
@@ -68,7 +84,7 @@ sed -i 's/\r$//' /usr/local/bin/wopr-stats.sh
 echo -e "  ${GREEN}✓${NC} Stats script installed to /usr/local/bin/"
 
 # Create API + data directories and install map data
-echo -e "${AMBER}[4/7]${NC} Installing data files..."
+echo -e "${AMBER}[4/8]${NC} Installing data files..."
 mkdir -p /var/www/html/api
 mkdir -p /var/www/html/data
 if [ -f "${SRC_DIR}/data/ne_110m_land.json" ]; then
@@ -79,8 +95,51 @@ else
 fi
 echo -e "  ${GREEN}✓${NC} /var/www/html/api/ and /data/ ready"
 
+# Install JOSHUA voice synthesis endpoint (espeak-ng via fcgiwrap)
+echo -e "${AMBER}[5/8]${NC} Configuring JOSHUA voice synthesis..."
+if [ "$VOICE_DEPS_OK" -eq 1 ]; then
+    cp "${SRC_DIR}/wopr-speak.cgi" /usr/local/bin/wopr-speak.cgi
+    chmod +x /usr/local/bin/wopr-speak.cgi
+    sed -i 's/\r$//' /usr/local/bin/wopr-speak.cgi
+    mkdir -p /etc/nginx/snippets
+    cp "${SRC_DIR}/wopr-speak.conf" /etc/nginx/snippets/wopr-speak.conf
+
+    NGINX_SITE=""
+    for candidate in /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default; do
+        if [ -f "$candidate" ]; then NGINX_SITE="$candidate"; break; fi
+    done
+
+    if [ -n "$NGINX_SITE" ] && ! grep -q "wopr-speak.conf" "$NGINX_SITE"; then
+        cp "$NGINX_SITE" "${NGINX_SITE}.wopr-bak"
+        awk '
+          { line=$0 }
+          { opens=gsub(/\{/,"{"); closes=gsub(/\}/,"}") }
+          (!inserted && depth==1 && closes>opens) { print "    include snippets/wopr-speak.conf;"; inserted=1 }
+          { depth+=opens-closes; print line }
+        ' "$NGINX_SITE" > "${NGINX_SITE}.tmp" && mv "${NGINX_SITE}.tmp" "$NGINX_SITE"
+
+        if nginx -t >/dev/null 2>&1; then
+            echo -e "  ${GREEN}✓${NC} Voice endpoint registered in nginx (backup: ${NGINX_SITE}.wopr-bak)"
+        else
+            cp "${NGINX_SITE}.wopr-bak" "$NGINX_SITE"
+            echo -e "  ${AMBER}!${NC} Automatic nginx edit failed validation and was reverted."
+            echo -e "  ${AMBER}!${NC} Add manually inside your server {} block: include snippets/wopr-speak.conf;"
+        fi
+    elif [ -n "$NGINX_SITE" ]; then
+        echo -e "  ${GREEN}✓${NC} Voice endpoint already registered in nginx config"
+    else
+        echo -e "  ${AMBER}!${NC} Could not locate nginx site config."
+        echo -e "  ${AMBER}!${NC} Add manually inside your server {} block: include snippets/wopr-speak.conf;"
+    fi
+
+    systemctl enable --now fcgiwrap.socket >/dev/null 2>&1 || systemctl enable --now fcgiwrap >/dev/null 2>&1 || true
+    echo -e "  ${GREEN}✓${NC} wopr-speak.cgi installed to /usr/local/bin/"
+else
+    echo -e "  ${AMBER}!${NC} Skipping voice synthesis setup (missing dependencies)"
+fi
+
 # Install systemd service
-echo -e "${AMBER}[5/7]${NC} Configuring systemd service..."
+echo -e "${AMBER}[6/8]${NC} Configuring systemd service..."
 cp "${SRC_DIR}/wopr-stats.service" /etc/systemd/system/wopr-stats.service
 sed -i 's/\r$//' /etc/systemd/system/wopr-stats.service
 systemctl daemon-reload
@@ -88,13 +147,13 @@ systemctl enable wopr-stats >/dev/null 2>&1
 systemctl restart wopr-stats
 echo -e "  ${GREEN}✓${NC} wopr-stats service enabled and started"
 
-# Nginx reload (pick up new /data/ location)
-echo -e "${AMBER}[6/7]${NC} Reloading nginx..."
+# Nginx reload (pick up new /data/ location and voice endpoint)
+echo -e "${AMBER}[7/8]${NC} Reloading nginx..."
 nginx -t >/dev/null 2>&1 && systemctl reload nginx
 echo -e "  ${GREEN}✓${NC} nginx reloaded"
 
 # Verify
-echo -e "${AMBER}[7/7]${NC} Verifying installation..."
+echo -e "${AMBER}[8/8]${NC} Verifying installation..."
 sleep 3
 if systemctl is-active --quiet wopr-stats; then
     echo -e "  ${GREEN}✓${NC} wopr-stats service is running"

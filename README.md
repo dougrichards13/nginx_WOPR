@@ -22,6 +22,7 @@ Live telemetry. Real attack data. Playable retro games. CRT scanlines. What more
 - **System Log Intercepts** — Live journal log feed displayed in-dashboard
 - **Real SSH Attack Data** — Parses `auth.log` for actual failed login attempts
 - **Interactive JOSHUA Terminal** — In-browser Linux command helper chatbot (pattern-matching, no LLM required). Covers 40+ commands and 20+ "how to" topics. War Games easter eggs included. I'll add more libraries to this as the homelab build advances.
+- **JOSHUA Voice Synthesis** — JOSHUA speaks its terminal responses aloud using `espeak-ng`'s robotic voice (the same flat, synthesized tone used for WOPR-style sci-fi computer voices). Toggle on/off from the status bar.
 - **Service Status Monitor** — Live status of nginx, SSH, cron, dbus, NTP, journald, network, and the WOPR stats service. I plan to add messaging/alerts to this eventually
 - **CRT Aesthetic** — Scanlines, phosphor glow, pixel sprites, VT323 + Press Start 2P fonts
 - **Responsive** — Collapses to single-column on mobile
@@ -56,7 +57,7 @@ Games open in CRT-styled modal popups. Close with ✕, Escape, or clicking outsi
                                                 └────────────────┘
 ```
 
-**Zero external dependencies** at runtime — no Node.js, no Python, no databases. Just bash, nginx, and a browser.
+**No Node.js, Python, or databases** at runtime — just bash, nginx, and a browser (plus `espeak-ng` + `fcgiwrap` if you enable JOSHUA's voice).
 
 ## Quick Install
 
@@ -66,6 +67,7 @@ Games open in CRT-styled modal popups. Close with ✕, Escape, or clicking outsi
 - Raspberry Pi OS (Debian-based)
 - nginx installed (`sudo apt install nginx`)
 - `bc` package (`sudo apt install bc`)
+- `espeak-ng` and `fcgiwrap` for JOSHUA's voice (`sudo apt install espeak-ng fcgiwrap`) — installer handles this automatically; voice is skipped gracefully if unavailable
 
 ### One-Line Install
 
@@ -96,8 +98,20 @@ sudo cp src/wopr-stats.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now wopr-stats
 
+# Install JOSHUA voice synthesis (optional)
+sudo apt install -y espeak-ng fcgiwrap
+sudo cp src/wopr-speak.cgi /usr/local/bin/wopr-speak.cgi
+sudo chmod +x /usr/local/bin/wopr-speak.cgi
+sudo mkdir -p /etc/nginx/snippets
+sudo cp src/wopr-speak.conf /etc/nginx/snippets/wopr-speak.conf
+# Add this line inside your server {} block (e.g. /etc/nginx/sites-enabled/default):
+#   include snippets/wopr-speak.conf;
+sudo nginx -t && sudo systemctl reload nginx
+sudo systemctl enable --now fcgiwrap.socket
+
 # Verify
 curl -s http://localhost/api/stats.json | head -5
+curl -s -o /tmp/test.wav "http://localhost/api/speak?text=greetings+professor+falken" && file /tmp/test.wav
 ```
 
 Then visit `http://<your-pi-ip>/` in a browser.
@@ -147,10 +161,15 @@ The `cities` array in `src/index.html` holds `[name, longitude, latitude]` entri
 
 Each game is a self-contained `init` function in the mini-games engine section of `src/index.html`. To add a new game: create an `initYourGame()` function that draws on `gameCanvas`, add it to the `GAMES` map, and add a `<li class="playable" data-game="yourgame">` entry to the game list.
 
+### Changing JOSHUA's Voice
+
+JOSHUA's speech is generated server-side by `src/wopr-speak.cgi`, which calls `espeak-ng -v en -s 175 --stdout -- "$TEXT"`. Adjust `-v` (voice, e.g. `en-us`, `en-gb`) or `-s` (words per minute) there. List available voices with `espeak-ng --voices`. Disable voice entirely per-browser via the VOICE toggle in the status bar (persisted in `localStorage`).
+
 ## Security Notes
 
 - **The stats script runs as root** via systemd to access thermal sensors and service status. Review `src/wopr-stats.sh` before installing — it only reads system information and writes JSON to the nginx web root.
-- **No data leaves the Pi.** The dashboard fetches only from the local `/api/stats.json` endpoint. The only external request is loading Google Fonts (can be removed for air-gapped setups).
+- **The voice endpoint (`/api/speak`) accepts arbitrary text** and passes it to `espeak-ng` as an argument (guarded with `--` to prevent option injection). It runs via `fcgiwrap`, not as root, and only ever produces audio output — review `src/wopr-speak.cgi` before installing.
+- **No data leaves the Pi.** The dashboard fetches only from the local `/api/stats.json` and `/api/speak` endpoints. The only external request is loading Google Fonts (can be removed for air-gapped setups).
 - **The "attacks" on the threat map are simulated** for visual effect. Real SSH brute-force attempts from `auth.log` are included in the stats JSON but are currently displayed in the log panel, not on the map.
 - **No authentication.** Anyone on your network can view the dashboard. If your Pi is exposed to the internet, consider adding nginx basic auth or firewall rules.
 

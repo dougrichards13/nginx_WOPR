@@ -18,7 +18,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 @keyframes missile-blink{0%,40%{opacity:1}50%,90%{opacity:0}100%{opacity:1}}
 @keyframes threat-flash{0%,70%{color:var(--red)}71%,100%{color:var(--bg)}}
 @keyframes target-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
-.container{max-width:1200px;margin:0 auto;padding:10px;}
+.container{max-width:min(1800px,98vw);margin:0 auto;padding:10px;}
 .header{border:2px solid var(--green);padding:8px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:var(--panel-bg);box-shadow:0 0 10px var(--green-glow),inset 0 0 10px rgba(0,255,50,.05);}
 .header-title{font-family:'Press Start 2P',cursive;font-size:20px;animation:glow-pulse 2s ease-in-out infinite;letter-spacing:3px;}
 .header-status{font-size:18px;color:var(--amber);text-align:center;}
@@ -26,7 +26,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:r
 .header-host{font-family:'Press Start 2P',cursive;font-size:9px;text-align:right;line-height:1.6;}
 .stale-warning{display:none;font-family:'Press Start 2P',cursive;font-size:8px;color:var(--red);padding:4px;animation:blink 1s step-end infinite;}
 .stale-warning.visible{display:block;}
-.grid{display:grid;grid-template-columns:280px 1fr 280px;grid-template-rows:auto auto auto;gap:10px;margin-bottom:10px;}
+.grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr minmax(260px,340px);grid-template-rows:auto auto auto;gap:10px;margin-bottom:10px;}
 .panel{border:1px solid var(--border);background:var(--panel-bg);padding:10px;position:relative;box-shadow:0 0 5px rgba(0,255,50,.1);}
 .panel-title{font-family:'Press Start 2P',cursive;font-size:9px;color:var(--amber);border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px;letter-spacing:2px;}
 .system-status{grid-column:1;grid-row:1;}
@@ -232,6 +232,7 @@ TYPE "help" FOR AVAILABLE TOPICS OR ASK ME ANYTHING ABOUT LINUX.</span><br>
   <span id="uptime-display">UPTIME: --</span>
   <span style="color:var(--green)" id="data-status">● CONNECTING...</span>
   <span id="last-update">LAST: --</span>
+  <span id="voice-toggle" style="cursor:pointer" title="Toggle JOSHUA voice">🔊 VOICE: ON</span>
 </div>
 </div>
 <!-- GAME MODAL -->
@@ -327,14 +328,25 @@ setInterval(fetchStats,POLL_INTERVAL);setTimeout(fetchStats,500);
 const mapC=document.getElementById('map-canvas'),mapX=mapC.getContext('2d');
 const tmC=document.getElementById('threat-canvas'),tmX=tmC.getContext('2d');
 let attacks=[],totalAtk=0,atkTimes=[],geoData=null;
+let mapArea={x:0,y:0,w:0,h:0};
 
+function computeMapArea(){
+  // Equirectangular projection is only undistorted at a 2:1 width:height
+  // ratio. Letterbox/pillarbox the drawable area within the actual canvas
+  // so landmasses keep correct proportions regardless of panel shape.
+  const W=tmC.width,H=tmC.height,ratio=2;
+  let w,h;
+  if(W/H>ratio){h=H;w=H*ratio;}else{w=W;h=W/ratio;}
+  mapArea={x:(W-w)/2,y:(H-h)/2,w,h};
+}
 function resizeMap(){
   const r=tmC.parentElement.getBoundingClientRect();
   mapC.width=r.width;mapC.height=r.height;
   tmC.width=r.width;tmC.height=r.height;
+  computeMapArea();
   renderStaticMap();
 }
-function geo(lon,lat){return[(lon+180)/360*tmC.width,(90-lat)/180*tmC.height];}
+function geo(lon,lat){return[mapArea.x+(lon+180)/360*mapArea.w,mapArea.y+(90-lat)/180*mapArea.h];}
 
 const cities=[
 ['NEW YORK',-74,40.7],['WASHINGTON',-77,38.9],['LOS ANGELES',-118.2,34.1],['CHICAGO',-87.6,41.9],
@@ -554,10 +566,33 @@ joshuaInput.addEventListener('keydown',function(e){
     const rLine=document.createElement('div');
     rLine.innerHTML='<span class="joshua">'+resp+'</span>';
     termOut.appendChild(rLine);
+    speakJoshua(resp);
   }
   const br=document.createElement('br');termOut.appendChild(br);
   termBox.scrollTop=termBox.scrollHeight;
 });
+
+// ============================================================
+// JOSHUA VOICE SYNTHESIS — speaks responses via /api/speak (espeak-ng)
+// ============================================================
+let voiceEnabled=localStorage.getItem('wopr-voice')!=='off';
+function updateVoiceBtn(){const b=document.getElementById('voice-toggle');if(b)b.textContent=voiceEnabled?'🔊 VOICE: ON':'🔇 VOICE: OFF';}
+function speakJoshua(text){
+  if(!voiceEnabled||!text)return;
+  const clean=text.replace(/[^\x20-\x7E\n]/g,'').replace(/\n+/g,'. ').trim().substring(0,500);
+  if(!clean)return;
+  const audio=new Audio('/api/speak?text='+encodeURIComponent(clean));
+  audio.play().catch(()=>{});
+}
+const voiceBtn=document.getElementById('voice-toggle');
+if(voiceBtn){
+  updateVoiceBtn();
+  voiceBtn.addEventListener('click',function(){
+    voiceEnabled=!voiceEnabled;
+    localStorage.setItem('wopr-voice',voiceEnabled?'on':'off');
+    updateVoiceBtn();
+  });
+}
 
 // ============================================================
 // UI UTILITIES
