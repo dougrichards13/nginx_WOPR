@@ -1,0 +1,72 @@
+WOPR WINDOWS COMMAND CENTER — THIRD-PARTY NOTICES
+
+WOPR's own code is MIT licensed; see LICENSE. The portable ZIP is an
+aggregation of independently licensed components, not a relicensing of them.
+
+Python
+  https://www.python.org/
+  Python Software Foundation License and included third-party notices.
+  See licenses/Python-LICENSE.txt in portable builds.
+
+psutil 7.0.0
+  https://github.com/giampaolo/psutil
+  BSD 3-Clause license. Copyright its respective contributors.
+  See licenses/psutil/ in portable builds.
+
+PyInstaller
+  https://pyinstaller.org/
+  GPL with the PyInstaller bootloader exception permitting distribution of
+  applications under their own license. Preserve the supplied bootloader
+  license/exception and notices; see licenses/pyinstaller/.
+
+eSpeak NG 1.52.0 (separate local speech process)
+  https://github.com/espeak-ng/espeak-ng/tree/1.52.0
+  GNU GPL version 3 or later, with additional embedded-component notices.
+  See speech/COPYING-espeak-ng.txt and speech/upstream-notices/.
+  Corresponding upstream source archive, SHA-256 manifest and exact WOPR build
+  recipe are included under speech/corresponding-source/ and
+  speech/BUILD-INFO.json. The build uses static runtime linkage and no audio
+  device backend; generated WAV is played by the browser.
+
+Sonic (eSpeak speech dependency)
+  Revision fbf75c3d6d846bad3bb3d456cbc5d07d9fd8c104
+  https://github.com/waywardgeek/sonic
+  License and corresponding source are included with the speech component.
+
+Natural Earth map data
+  https://www.naturalearthdata.com/
+  Public domain. Served from the included GeoJSON file.
+VT323 terminal font by Peter Hull
+  https://github.com/google/fonts/tree/main/ofl/vt323
+  SIL Open Font License 1.1. Embedded as WOFF2 so no runtime font request occurs.
+  Full copyright/license text is preserved in FONT_LICENSES.txt and index.html.
+
+OPTIONAL PUBLIC DATA (not bundled live feeds; no endorsement implied)
+
+SANS Internet Storm Center / DShield InfoCon
+  https://isc.sans.edu/infocon.html
+  https://isc.sans.edu/api/
+  Attribution-NonCommercial-ShareAlike 4.0 terms as described by ISC; the
+  operator also specifies best-effort service, responsible polling, attribution
+  and no resale. Respect the provider's current terms before redistributing
+  its data or using it commercially. WOPR fetches it only after user opt-in.
+  https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+CISA Known Exploited Vulnerabilities Catalog
+  https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+  CC0/public-domain catalog; third-party advisory links have their own terms.
+  This is a global bulletin, not a local software inventory/vulnerability scan.
+
+NOAA / National Weather Service Space Weather Prediction Center
+  https://www.swpc.noaa.gov/products/planetary-k-index
+  Public US government data; credit NOAA SWPC. Preliminary measurements can
+  change. No endorsement of WOPR is implied.
+
+US Geological Survey Earthquake Hazards Program
+  https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php
+  Public US government data. Preliminary event locations/magnitudes can change.
+  Attribution does not imply endorsement.
+
+The WarGames-inspired presentation is a fan project, not an affiliated product.
+No film audio samples, commercial speech service, analytics or external
+JavaScript library is included.

@@ -1,81 +1,118 @@
 # Security Policy
 
-## Overview
+WOPR is an entertainment dashboard and read-only system viewer, **not a security
+product, intrusion detector or management console**. Its simulated effects and
+public advisories do not establish that a machine is attacked, safe or vulnerable.
+No software is vulnerability-free; the controls below reduce exposure rather
+than promise immunity.
 
-WOPR Dashboard is a local-network system monitoring tool. It consists of:
+## Windows portable edition
 
-1. **A static HTML dashboard** (client-side only JavaScript)
-2. **A bash stats script** that runs as a systemd service with root privileges
-3. **nginx** serving static files
+### Exposure and authorization
 
-## Threat Model
+- The embedded HTTP server binds only to IPv4 loopback and selects an available
+  local port. There is no supported LAN bind mode, inbound firewall rule or
+  administrator requirement.
+- It serves an explicit asset allowlist, not a filesystem directory tree.
+  Runtime source, preferences, speech source archives, logs and arbitrary files
+  are not web-accessible.
+- Host/Origin checks and browser fetch-metadata checks reject cross-site use and
+  DNS-rebinding hostnames. No permissive CORS is enabled.
+- Speech, feed configuration and shutdown require a per-process unpredictable
+  token and same-origin requests. This is protection against other websites,
+  **not against malicious local processes**: software running as the user can
+  obtain the token just as their browser can.
+- Requests, speech text, synthesis concurrency and worker resources are bounded.
+  Speech passes text on stdin to a fixed local executable without shell parsing.
+  No terminal-command or arbitrary-URL execution route exists.
+- The Windows server applies CSP and other browser security headers. Displayed
+  terminal, feed and log text must not be treated as HTML.
 
-This project is designed for **trusted local networks** (homelabs, home networks). It is NOT designed to be exposed to the public internet without additional hardening.
+### Data collection and permissions
 
-### What the stats script does (and doesn't do)
+Local CPU, memory, disk, adapter, process and connection-count data is collected
+read-only. Process summaries contain bounded names and resource use, not command
+lines, environment variables, usernames or credentials. Aggregate connection
+metrics are not packet capture or remote endpoint intelligence.
 
-The `wopr-stats.sh` script runs as root and **only performs read operations**:
+Windows services and Defender/firewall status are best-effort read-only probes,
+not enforcement. Access denied or unsupported data is unavailable; WOPR does not
+elevate, change security settings, install drivers, open ports, scan networks,
+submit samples or contact suspect hosts. No Azure authentication, token-cache
+inspection or automatic cloud-account query occurs.
 
-- Reads CPU temperature from `/sys/class/thermal/`
-- Reads CPU frequency from `/sys/devices/system/cpu/`
-- Reads memory/disk/network stats from `/proc/` and standard utilities (`df`, `ss`, `ps`)
-- Reads service status via `systemctl is-active`
-- Reads system logs via `journalctl` (last 15 entries)
-- Reads auth.log for failed SSH login attempts
-- Writes a single JSON file to `/var/www/html/api/stats.json`
+The helper is an offline reference. It cannot execute pasted commands. Users
+must independently review any examples before running them in a real terminal,
+particularly cloud actions that could change resources or cost money. Do not
+paste secrets into the helper; terminal text remains visible in that tab.
 
-It does **not**:
-- Open any network connections
-- Execute user-provided input
-- Modify system configuration
-- Install packages or download files
+### Outbound requests and preferences
 
-### What the dashboard does (and doesn't do)
+Public feeds are opt-in. Only fixed HTTPS public-data endpoints are fetched,
+with size/time limits, independent caching and backoff. No local measurements
+or identifiers are included. As with ordinary HTTPS, feed operators can see the
+request's public source IP and standard request metadata.
 
-The HTML/JavaScript dashboard:
-- Fetches `/api/stats.json` from the same host (relative URL)
-- Loads Google Fonts from `fonts.googleapis.com` (the only external request)
-- All threat map animations are client-side simulations
-- The JOSHUA terminal is a local pattern-matching engine with no network calls
+Sources are SANS ISC, CISA, NOAA SWPC and USGS. Their failure or staleness is
+displayed separately from local telemetry. A public cyber alert is not a
+machine-health diagnosis. No local-IP reputation lookup or geolocation request
+is performed.
 
-It does **not**:
-- Send any data to external servers
-- Use cookies, localStorage, or tracking
-- Load any third-party JavaScript libraries
-- Accept or process any form data beyond the local JOSHUA input
+Portable speech is local eSpeak NG. A browser speech fallback must select only
+voices marked local, with visible feedback if none are available. A browser or
+OS voice implementation's behavior is outside WOPR's control; bundled eSpeak is
+the fully local preferred path.
 
-## Known Considerations
+The Windows page does not require remote fonts, scripts or analytics. Per-user
+feed consent is stored outside served assets; browser appearance/voice/privacy
+preferences use localStorage. Local telemetry is not intentionally persisted or
+uploaded. Privacy mode masks identifiers on the display; it does not remove data
+from a same-user process or its authorized local API. Browser/site preferences
+are origin-specific, so a changed random port may start a fresh browser
+preference set.
 
-1. **No authentication**: The dashboard is accessible to anyone who can reach your Pi on the network. Add nginx basic auth if needed:
-   ```
-   sudo apt install apache2-utils
-   sudo htpasswd -c /etc/nginx/.htpasswd admin
-   ```
-   Then add to your nginx site config:
-   ```
-   auth_basic "WOPR Access";
-   auth_basic_user_file /etc/nginx/.htpasswd;
-   ```
+### Distribution
 
-2. **Stats JSON is world-readable**: The JSON file includes your Pi's hostname, IP address, running services, and log excerpts. This is by design for the dashboard but could be an information disclosure concern on untrusted networks.
+Builds pin dependencies and verify upstream speech source checksums. Speech
+sources, build instructions and third-party notices accompany portable
+packages. Unsigned builds may be blocked by SmartScreen or corporate policy;
+do not disable security controls or bypass organizational restrictions.
 
-3. **Root execution**: The stats script requires root for thermal sensor and service status access. Review the script before installing.
+Closing a browser tab does not stop the server. Use shutdown or Ctrl+C in its
+console. Stop it before deleting the portable folder. Windows launchers do not
+change execution policy or create startup tasks.
 
-## Reporting Vulnerabilities
+## Raspberry Pi/Nginx edition
 
-If you discover a security vulnerability, please report it responsibly:
+The Pi deployment has a different trust model: Nginx may listen on the LAN, and
+there is **no built-in authentication**. Anyone who can reach it can view its
+stats and use its CGI speech endpoint. Keep it on trusted networks; use firewall
+rules, TLS and authentication before exposing it more widely. Windows runtime
+Host/token/CSP controls do not automatically apply to the existing Pi CGI.
 
-1. **Do NOT open a public issue** for security vulnerabilities
-2. Email the maintainer or use GitHub's private vulnerability reporting feature
-3. Include steps to reproduce, impact assessment, and suggested fix if possible
+`src/wopr-stats.sh` runs as root via systemd, reads `/proc`, sensors, service
+state and log excerpts, and writes JSON under the web root. Those excerpts may
+contain hostnames, addresses and failed-login details. Review it before
+installation. It does not accept user commands or alter firewall/service
+configuration during collection.
 
-We will respond within 72 hours and aim to release a fix within 7 days for critical issues.
+`src/wopr-speak.cgi` runs through fcgiwrap, not as root. It accepts bounded text
+and produces WAV output using eSpeak NG. It is not a general command endpoint,
+but concurrent use can consume CPU; add Nginx rate limits/authentication when
+appropriate.
 
-## Supported Versions
+The dashboard stores voice/display preferences in localStorage. The cyber-map
+arcs are simulation. Pi logs and actual failed-SSH records are distinct from
+those effects.
 
-| Version | Supported |
-|---------|-----------|
-| Latest  | ✅        |
-| Older   | ❌        |
+## Verification and reporting
 
-We recommend always running the latest version.
+Run the unit suite and HTTP/security tests, and the Windows packaged smoke test
+before distributing artifacts. Test cross-site/Host rejection, missing tokens,
+unavailable sensors, injection text, feed failures, offline voice and shutdown.
+Windows executable/browser testing is required; passing Linux tests alone does
+not establish Windows compatibility.
+
+Report security problems privately through the repository host's security
+reporting facility when available or contact the maintainer privately. Do not
+include credentials, private logs or exploit details in a public issue.

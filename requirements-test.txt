@@ -1,0 +1,2 @@
+-r requirements-windows.txt
+playwright==1.55.0

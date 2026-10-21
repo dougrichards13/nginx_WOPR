@@ -18,6 +18,12 @@ config.local.sh
 # Build artifacts
 *.tmp
 *.bak
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.spec
 
 # Stats output (runtime only)
 stats.json
