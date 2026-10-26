@@ -146,7 +146,7 @@ To uninstall, stop WOPR and delete the extracted folder. Remove its per-user
 `%LOCALAPPDATA%\WOPR\settings.json` and browser site data too if you want to reset
 preferences.
 
-##Debian(Raspberry Pi) version
+### Raspberry Pi WOPR (now with games!)
 
 ![WOPR Dashboard](docs/wopr-dashboard.png)
 
