@@ -146,6 +146,8 @@ To uninstall, stop WOPR and delete the extracted folder. Remove its per-user
 `%LOCALAPPDATA%\WOPR\settings.json` and browser site data too if you want to reset
 preferences.
 
+##Debian(Raspberry Pi) version
+
 ![WOPR Dashboard](docs/wopr-dashboard.png)
 
 ![License](https://img.shields.io/badge/license-MIT-green)
