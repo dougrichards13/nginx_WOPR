@@ -34,6 +34,14 @@ class FrontendStaticTests(unittest.TestCase):
         self.assertIn("PowerShell-safe JMESPath", kb)
         self.assertIn("Get-ExecutionPolicy -List", kb)
 
+    def test_observed_map_replaces_random_attacks(self):
+        self.assertNotIn("spawnAtk", HTML)
+        self.assertNotIn("schedAtk", HTML)
+        for expected in ("solarPosition", "WORLD DAYLIGHT / OFFLINE", "mappedCyber",
+                         "country-labels.json", "Country report aggregates",
+                         "world-clocks", "memory-history", "network-history"):
+            self.assertIn(expected, HTML)
+
 
 class QuietHandler(http.server.BaseHTTPRequestHandler):
     page = b""
@@ -66,6 +74,7 @@ class FrontendBrowserTests(unittest.TestCase):
                  "log_entries": [{"time": "fixture", "msg": '<img src=x onerror="window.pwned=1">'}],
                  "battery": None, "security": None}
         intel = {"feeds": {
+            "cyber": {"state": "offline", "data": None},
             "isc": {"state": "offline", "source": "SANS", "data": None},
             "cisa": {"state": "stale", "source": '<img src=x onerror="window.pwned=1">',
                      "url": "javascript:alert(1)", "data": {"items": [{"cve_id": "<b>fixture</b>"}]}},
@@ -94,6 +103,7 @@ window.fetch=async function(url,opts={}){
     data=CONFIG;
   }else if(String(url).startsWith('/api/stats.json'))data=STATS;
   else if(url==='/api/intel')data=INTEL;
+  else if(url==='/data/country-labels.json')data={countries:{US:{name:'United States',longitude:-100,latitude:40}}};
   else data={features:[]};
   return {ok:true,status:200,json:async()=>data,blob:async()=>new Blob(['wav'],{type:'audio/wav'})};
 };
@@ -109,8 +119,20 @@ setTimeout(async()=>{
     check(!$('threat-log').querySelector('img'),'log created markup');
     check($('cpu-temp').textContent==='N/A','missing temp fabricated');
     check($('rx-rate').textContent==='0.0 KiB/s','zero rate not preserved');
-    check($('tx-rate').textContent==='N/A KiB/s','missing rate fabricated');
+    check($('tx-rate').textContent==='SAMPLING','first missing rate should be sampling');
     check($('per-core').children.length===2,'per-core bars missing');
+    check($('thermal-readings').hidden&&!$('activity-readings').hidden,'sensor panel not adaptive');
+    check($('activity-cpu').textContent==='24.0%','CPU fallback missing');
+    check($('load-avg').parentElement.hidden,'unsupported load averages shown');
+    check(!$('power-rates').textContent.includes('BATTERY'),'nonexistent battery shown');
+    check($('security-status').hidden,'unavailable security probes shown');
+    check($('world-clocks').querySelectorAll('time').length===4,'offline clocks absent');
+    const count=cpuHistory.length;updateDashboard(lastStats);
+    check(cpuHistory.length===count,'redraw duplicated samples');
+    const sun=solarPosition(new Date('2026-03-20T12:00:00Z'));
+    check(Math.abs(sun.latitude)<2&&Math.abs(sun.longitude)<4,'equinox solar position wrong');
+    check(sunlight(sun.longitude,sun.latitude,sun)>.99,'noon not daylight');
+    check(sunlight(sun.longitude+180,-sun.latitude,sun)<-.99,'antipode not night');
     updateTelemetryFreshness({timestamp:new Date(Date.now()-60000).toISOString()});
     check($('data-status').textContent.includes('STALE'),'frozen sample marked live');
     updateTelemetryFreshness({timestamp:new Date().toISOString()});
@@ -131,6 +153,22 @@ setTimeout(async()=>{
       check($('map-title').textContent.includes('REAL PUBLIC EVENTS'),'real map not labeled');
       check(document.querySelector('.map-overlay').hidden,'fake attack counter on real map');
       check(earthquakes.length===1,'normalized USGS events absent');
+      $('map-mode').value='cyber';$('map-mode').dispatchEvent(new Event('change'));
+      check($('map-state').textContent.includes('DAYLIGHT VIEW ACTIVE'),'empty cyber fallback absent');
+      const base=lastIntel;
+      renderIntel({feeds:{...base.feeds,cyber:{state:'live',fetched_at:'fixture-fetch',data:{items:[
+        {country:'US',reports:12,sources:3,targets:2},
+        {country:'ZZ',reports:8,sources:1,targets:1},
+        {country:'US',reports:-1,sources:0,targets:0}
+      ]}}}});
+      check(mappedCyber().length===1,'unknown locations plotted or invalid counts accepted');
+      check(!$('map-source').querySelector('img'),'map source unsafe');
+      check($('cyber-ranking').textContent.includes('12 reports'),'observed counts absent');
+      check($('map-state').textContent.includes('fixture-fetch'),'map retrieval timestamp absent');
+      check(!document.querySelector('.map-overlay').hidden,'observed summary hidden');
+      renderIntel({feeds:{...lastIntel.feeds,cyber:{...lastIntel.feeds.cyber,state:'stale'}}});
+      check($('map-state').textContent.includes('STALE')&&mappedCyber().length===1,'last good cyber data lost');
+      renderIntel(base);
       await setFeedConsent(false);
       const req=window.fixtureRequests.find(x=>x.method==='POST'&&x.url==='/api/config');
       check(req?.headers['X-WOPR-Token']==='fixture-token','config token absent');

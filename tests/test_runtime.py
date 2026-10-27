@@ -22,6 +22,9 @@ from windows.wopr import LOOPBACK, MAX_BODY, Runtime, Server
 
 FIXTURES = {
     "isc": {"infocon": {"status": "green", "date": "2026-10-21"}},
+    "cyber": [{"country": "US", "reports": 100, "sources": 12, "targets": 8},
+              {"country": "DE", "reports": 0, "sources": 0, "targets": 0},
+              {"country": "", "reports": 4, "sources": 1, "targets": 1}],
     "cisa": {"count": 1, "catalogVersion": "1", "dateReleased": "2026-10-21T00:00:00Z",
              "vulnerabilities": [{"cveID": "CVE-2026-0001", "dateAdded": "2026-10-21",
                                   "vendorProject": "Example", "vulnerabilityName": "<script>bad()</script>"}]},
@@ -112,6 +115,31 @@ class CollectorTests(unittest.TestCase):
 
 
 class FeedTests(unittest.TestCase):
+    def test_country_summary_validation_and_no_invented_observation_time(self):
+        result, observed = normalize("cyber", FIXTURES["cyber"])
+        self.assertIsNone(observed)
+        self.assertEqual([row["country"] for row in result["items"]], ["US", "DE"])
+        self.assertEqual(result["items"][1]["reports"], 0)
+        self.assertIn("SANS", result["attribution"])
+        self.assertGreaterEqual(SOURCES["cyber"][2], 3600)
+        for bad in (True, -1, "100", 1.2, 10**16, float("nan")):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                normalize("cyber", [{"country": "US", "reports": bad, "sources": 1, "targets": 1}])
+        for bad in ({}, [{}] * 513, FIXTURES["cyber"] * 2):
+            with self.assertRaises(ValueError):
+                normalize("cyber", bad)
+
+    def test_reenable_does_not_bypass_refresh_or_failure_backoff(self):
+        self.feeds.set_enabled(True)
+        self.feeds.tick()
+        due = dict(self.feeds.next_due)
+        self.feeds.set_enabled(False)
+        self.feeds.set_enabled(True)
+        self.feeds.fetcher = mock.Mock(side_effect=AssertionError("early request"))
+        self.feeds.tick()
+        self.feeds.fetcher.assert_not_called()
+        self.assertEqual(due, self.feeds.next_due)
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
@@ -389,6 +417,15 @@ class ServerTests(unittest.TestCase):
     def test_static_dashboard_and_offline_map(self):
         self.assertEqual(self.request(path="/")[0], 200)
         self.assertEqual(self.request(path="/data/ne_110m_land.json")[0], 200)
+        status, _, raw = self.request(path="/data/country-labels.json")
+        self.assertEqual(status, 200)
+        data = json.loads(raw)
+        self.assertIn("Public domain", data["license"])
+        self.assertGreater(len(data["countries"]), 150)
+        for code, point in data["countries"].items():
+            self.assertEqual(len(code), 2)
+            self.assertTrue(-180 <= point["longitude"] <= 180)
+            self.assertTrue(-90 <= point["latitude"] <= 90)
 
     def test_stats_and_offline_intel(self):
         status, _, raw = self.request(path="/api/stats.json")

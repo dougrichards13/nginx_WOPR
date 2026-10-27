@@ -33,6 +33,7 @@ ASSETS = {"/": ("index.html", "text/html; charset=utf-8"),
           "/windows.js": ("windows.js", "text/javascript; charset=utf-8"),
           "/windows.css": ("windows.css", "text/css; charset=utf-8"),
           "/data/ne_110m_land.json": ("data/ne_110m_land.json", "application/json"),
+          "/data/country-labels.json": ("data/country-labels.json", "application/json"),
           "/world-map.json": ("world-map.json", "application/json")}
 MAX_BODY = 4096
 

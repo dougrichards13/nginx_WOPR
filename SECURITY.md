@@ -53,10 +53,16 @@ with size/time limits, independent caching and backoff. No local measurements
 or identifiers are included. As with ordinary HTTPS, feed operators can see the
 request's public source IP and standard request metadata.
 
-Sources are SANS ISC, CISA, NOAA SWPC and USGS. Their failure or staleness is
+Sources are SANS ISC (including DShield country report aggregates), CISA, NOAA SWPC
+and USGS. The country feed is refreshed no more than hourly within a session;
+feed toggles do not bypass refresh limits or failure backoff. Their failure or staleness is
 displayed separately from local telemetry. A public cyber alert is not a
-machine-health diagnosis. No local-IP reputation lookup or geolocation request
-is performed.
+machine-health diagnosis. The cyber map uses bundled Natural Earth country label
+points, not event coordinates or attacker attribution. Country aggregates do not
+provide individual attack routes or a complete worldwide event stream. No local-IP
+reputation lookup or geolocation request is performed. Daylight and clocks are
+calculated locally. Last-good public observations are retained only in memory
+for the running session, with offline/stale states shown.
 
 Portable speech is local eSpeak NG. A browser speech fallback must select only
 voices marked local, with visible feedback if none are available. A browser or
@@ -101,9 +107,10 @@ and produces WAV output using eSpeak NG. It is not a general command endpoint,
 but concurrent use can consume CPU; add Nginx rate limits/authentication when
 appropriate.
 
-The dashboard stores voice/display preferences in localStorage. The cyber-map
-arcs are simulation. Pi logs and actual failed-SSH records are distinct from
-those effects.
+The dashboard stores voice/display preferences in localStorage. The shared map
+defaults to calculated daylight and clocks, with no external requests. The
+Windows-runtime public cyber and earthquake layers are not enabled by the Pi
+installer. Pi logs and actual failed-SSH records remain local telemetry.
 
 ## Verification and reporting
 

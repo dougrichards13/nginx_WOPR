@@ -112,6 +112,7 @@ button,select,input{font:inherit}button,select{color:var(--green);background:var
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;font-size:13px}.toolbar label{display:flex;align-items:center;gap:4px}.toolbar input[type=range]{width:70px}.toolbar output{min-width:24px}
 .edition-label{color:var(--amber);letter-spacing:3px;margin-right:auto}.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}.detail-grid pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 monospace;max-height:200px;overflow:auto}.detail-grid .wide{grid-column:span 2}
 .sparkline{width:100%;height:55px}.core-bars{display:flex;gap:3px;align-items:flex-end;height:48px;margin:6px 0}.core-bars span{background:var(--green);min-width:3px;flex:1}.caption{font-size:12px;color:var(--green-dim);line-height:1.6}.feed-card{border-top:1px solid var(--border);padding:8px 0;font-size:13px;overflow-wrap:anywhere}.feed-card a{color:var(--amber)}.feed-records{max-height:150px;overflow:auto;white-space:pre-wrap;line-height:1.5}.feed-state{color:var(--amber)}.notice{border:1px solid var(--amber);padding:14px;margin:10px 0;line-height:1.6;background:var(--panel-bg)}[hidden]{display:none!important}
+.world-clocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}.world-clocks div{border-left:2px solid var(--border);padding-left:7px;min-width:0}.world-clocks time{display:block;font:clamp(11px,1.3vw,18px) monospace;color:var(--amber)}.world-clocks small{font-size:11px;color:var(--green-dim)}.map-container{min-height:180px}.map-summary{font-size:12px;line-height:1.5;padding-top:5px;overflow-wrap:anywhere}.map-overlay{top:8px;right:8px;background:#050d05dd;padding:7px;max-width:55%;font:11px/1.6 monospace}.map-overlay pre{white-space:pre-wrap}.map-legend{bottom:5px}.adaptive-core-bars{height:35px}.history-key{font-size:12px;color:var(--amber)}.activity-number{font:32px monospace;color:var(--amber);margin:5px 0}.adaptive-history{height:38px}.thermal-detail{font-size:12px;color:var(--green-dim)}
 body.amber{--green:#ffbc45;--green-dim:#b77e30;--green-glow:#ffaa0055;--panel-bg:#191407;--border:#665020}
 body.reduced *,body.reduced::after{animation:none!important;transition:none!important}body.reduced::after{display:none}@media(prefers-reduced-motion:reduce){*,body::after{animation:none!important;transition:none!important}}
 .boot{position:fixed;inset:0;background:#020602;z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px}.boot-inner{width:min(720px,100%);border:1px solid var(--green);padding:30px;box-shadow:0 0 60px #33ff3322}.boot pre{font:clamp(12px,2vw,18px)/1.9 monospace;white-space:pre-wrap;margin:20px 0}.boot h1{letter-spacing:8px}.boot progress{width:100%;accent-color:var(--green);margin-bottom:20px}
@@ -124,7 +125,8 @@ body.wallboard .grid{flex:1;min-height:0;grid-template-columns:minmax(220px,280p
 body.wallboard .panel{padding:7px;overflow:hidden}
 body.wallboard .panel-title{font-size:10px;margin-bottom:5px;padding-bottom:4px}
 body.wallboard .world-map-panel{min-height:0}
-body.wallboard .net-radar{width:65px;height:65px;margin:2px auto}
+body.wallboard .net-radar{width:42px;height:42px;margin:2px auto}
+body.wallboard .netops-panel>.caption{display:none}
 body.wallboard .net-stats{font-size:12px;margin-top:2px}
 body.wallboard .status-line{padding:1px 0;font-size:15px}
 body.wallboard .metric-line{font-size:13px;padding:1px 0}
@@ -138,13 +140,22 @@ body.wallboard .detail-grid{height:294px;grid-template-rows:168px 120px;flex-shr
 body.wallboard .detail-grid pre{font-size:12px;line-height:1.35;max-height:106px}
 body.wallboard .core-bars{height:25px;margin:2px 0}
 body.wallboard .sparkline{height:28px}
-body.wallboard .feed-card{display:inline-block;vertical-align:top;width:24%;padding:3px 5px 0 0;border-top:0;font-size:11px}
+body.wallboard .feed-card{display:inline-block;vertical-align:top;width:19.5%;padding:3px 5px 0 0;border-top:0;font-size:11px}
 body.wallboard .feed-records{font-size:11px;max-height:28px}
 body.wallboard .feed-card .caption{font-size:9px;line-height:1.2}
 body.wallboard #intel-panel>.caption{display:none}
 body.wallboard .terminal,body.wallboard .sprite-row{display:none}
 body.wallboard .status-bar{flex-shrink:0;padding:3px 8px;font-size:12px}
+body.wallboard .notice{flex-shrink:0}
+body.wallboard .container:has(#feed-consent:not([hidden])){height:auto;min-height:100vh}
+body.wallboard .container:has(#feed-consent:not([hidden])) .grid{flex:none;grid-template-rows:repeat(3,minmax(220px,auto))}
 }
+@media(min-width:1100px) and (max-height:950px){
+body.wallboard .container{height:auto;min-height:100vh}
+body.wallboard .grid{flex:none;grid-template-rows:repeat(3,minmax(220px,auto))}
+body.wallboard .world-map-panel{min-height:660px}
+}
+#map-source a{color:var(--amber)}
 </style>
 </head>
 <body>
@@ -199,11 +210,18 @@ WARGAMES .................... SIMULATION ONLY</pre>
   <!-- LEFT: DEFCON -->
   <div class="panel defcon-panel">
     <div class="panel-title">◈ THERMAL CONDITION</div>
+    <div id="thermal-readings">
     <div class="defcon-label">CORE TEMP DEFCON</div>
     <div class="defcon-level" id="defcon-display">-</div>
     <div class="defcon-desc" id="defcon-desc">AWAITING TELEMETRY</div>
-    <div class="temp-readout">CPU: <span id="cpu-temp">--</span><span id="cpu-unit"></span> &nbsp; GPU: <span id="gpu-temp">--</span><span id="gpu-unit"></span></div>
+    <div class="temp-readout">CPU: <span id="cpu-temp">--</span><span id="cpu-unit"></span><span id="gpu-reading"> &nbsp; GPU: <span id="gpu-temp">--</span><span id="gpu-unit"></span></span></div>
     <div class="nuke-warning" id="throttle-warn" style="display:none">⚠ THERMAL THROTTLE ⚠</div>
+    </div>
+    <div id="activity-readings" hidden>
+      <div class="caption">CPU ACTIVITY</div><div id="activity-cpu" class="activity-number">SAMPLING</div>
+      <div id="activity-cores" class="core-bars adaptive-core-bars" aria-label="CPU activity by core"></div>
+      <div id="activity-summary" class="caption"></div>
+    </div>
   </div>
   <!-- LEFT: Metrics -->
   <div class="panel metrics-panel">
@@ -220,24 +238,20 @@ WARGAMES .................... SIMULATION ONLY</pre>
   </div>
   <!-- CENTER: Threat Map -->
   <div class="panel world-map-panel">
-    <div class="panel-title" id="map-title">◈ WARGAMES SIMULATION — NOT LIVE ATTACKS</div>
-    <div class="toolbar"><label>MAP LAYER <select id="map-mode"><option value="simulation">WARGAMES SIMULATION</option><option value="earthquakes">USGS EARTHQUAKES / REAL EVENTS</option></select></label></div>
+    <div class="panel-title" id="map-title">◈ WORLD WATCH / DAYLIGHT</div>
+    <div class="toolbar"><label>MAP LAYER <select id="map-mode"><option value="daylight">WORLD DAYLIGHT / OFFLINE</option><option value="cyber" disabled>CYBER ACTIVITY / SANS ISC</option><option value="earthquakes" disabled>USGS EARTHQUAKES / REAL EVENTS</option></select></label></div>
+    <div id="world-clocks" class="world-clocks" aria-label="World clocks"></div>
     <div class="map-container">
       <canvas id="map-canvas" class="map-base-canvas"></canvas>
       <canvas id="threat-canvas" class="threat-map-canvas"></canvas>
-      <div class="map-overlay">
-        <div class="attack-counter">SIMULATED: <span id="attack-count">0</span></div>
-        <div style="color:var(--amber)">PER MIN: <span id="attack-rate">0</span></div>
-        <div style="color:var(--green-dim)" id="map-state">FICTIONAL ROUTES / NO DETECTION</div>
+      <div class="map-overlay" hidden>
+        <div id="cyber-total" style="color:var(--amber)"></div>
+        <pre id="cyber-ranking"></pre>
       </div>
-      <div class="map-quote">★ A STRANGE GAME — THE ONLY WINNING MOVE IS NOT TO PLAY ★</div>
-      <div class="map-legend">
-        <span style="color:#ff3333">● MALWARE</span>
-        <span style="color:#ffaa00">● EXPLOIT</span>
-        <span style="color:#ff6600">● PHISH</span>
-        <span style="color:#33ff33">● SCAN</span>
-      </div>
+      <div class="map-legend" id="map-legend">SHADED: NIGHT / LOCAL CALCULATION</div>
     </div>
+    <div id="map-state" class="map-summary" role="status">OFFLINE READY / DAYLIGHT CALCULATED ON THIS DEVICE</div>
+    <div id="map-source" class="caption"></div>
   </div>
   <!-- RIGHT: Network Ops (was BMEWS) -->
   <div class="panel netops-panel">
@@ -257,6 +271,7 @@ WARGAMES .................... SIMULATION ONLY</pre>
       <div><span class="lbl">TOTAL TX</span><span class="val" id="total-tx">-- MB</span></div>
       <div><span class="lbl">CONNECTIONS</span><span class="val" id="conn-count">--</span></div>
     </div>
+    <svg class="sparkline adaptive-history" viewBox="0 0 300 55" role="img" aria-label="Network activity history, relative to session peak"><polyline id="network-history" fill="none" stroke="currentColor" stroke-width="2" points=""></polyline></svg>
   </div>
   <!-- RIGHT: Log Intercepts -->
   <div class="panel threat-panel">
@@ -279,9 +294,9 @@ WARGAMES .................... SIMULATION ONLY</pre>
   </div>
 </div>
 <div class="detail-grid">
-  <section class="panel"><div class="panel-title">◈ LOCAL LOAD / ROLLING 60 SAMPLES</div><svg class="sparkline" viewBox="0 0 300 55" role="img" aria-label="CPU usage history"><polyline id="cpu-history" fill="none" stroke="currentColor" stroke-width="2" points=""></polyline></svg><div class="core-bars" id="per-core" aria-label="Per-core CPU utilization"></div><pre id="power-rates">EXTENDED TELEMETRY: AWAITING DATA</pre></section>
-  <section class="panel"><div class="panel-title">◈ PROCESS RESOURCE SNAPSHOT</div><div class="caption">Names and resource use only. Privacy mode masks names.</div><pre id="process-list">UNAVAILABLE IN PI CONTRACT</pre></section>
-  <section class="panel"><div class="panel-title">◈ LOCAL SECURITY / STORAGE</div><div class="caption">Read-only observations. Unavailable never means healthy.</div><pre id="security-status">AWAITING CAPABILITIES</pre><pre id="disk-adapters"></pre></section>
+  <section class="panel"><div class="panel-title">◈ LOCAL ACTIVITY / LAST 60 SAMPLES</div><svg class="sparkline" viewBox="0 0 300 55" role="img" aria-label="CPU and memory usage history"><polyline id="cpu-history" fill="none" stroke="currentColor" stroke-width="2" points=""></polyline><polyline id="memory-history" fill="none" stroke="#ffaa00" stroke-width="1.5" points=""></polyline></svg><div class="history-key">CPU / MEMORY (AMBER)</div><div class="core-bars" id="per-core" aria-label="Per-core CPU utilization"></div><pre id="power-rates">COLLECTING LOCAL ACTIVITY</pre></section>
+  <section class="panel"><div class="panel-title" id="process-title">◈ PROCESS RESOURCE SNAPSHOT</div><div class="caption" id="process-caption">Names and resource use only. Privacy mode masks names.</div><pre id="process-list">COLLECTING LOCAL ACTIVITY</pre></section>
+  <section class="panel"><div class="panel-title" id="storage-title">◈ STORAGE / SYSTEM SNAPSHOT</div><div class="caption" id="storage-caption">Local storage and available system observations.</div><pre id="security-status"></pre><pre id="disk-adapters"></pre></section>
   <section class="panel wide" id="intel-panel" hidden><div class="panel-title">◈ PUBLIC WORLD INTELLIGENCE / NOT LOCAL DETECTIONS</div><div class="caption">Independent public context. Cached/stale/offline states are shown; bulletin presence does not imply installed software is affected.</div><div id="intel-feeds"></div></section>
   <section class="panel"><div class="panel-title">◈ JOSHUA / LOCAL VOICE</div><div class="toolbar"><label>SPEED <input id="voice-speed" type="range" min="80" max="300" value="165"><output id="speed-value">165</output></label><label>PITCH <input id="voice-pitch" type="range" min="0" max="99" value="30"><output id="pitch-value">30</output></label><label>VOLUME <input id="voice-volume" type="range" min="0" max="100" value="70"><output id="volume-value">70</output></label></div><button id="voice-test">GREETINGS / TEST VOICE</button> <button id="voice-stop">STOP SPEECH</button><button id="browser-voice" hidden>TRY BROWSER-LOCAL VOICE</button><div id="voice-status" class="caption" role="status">Local eSpeak; click to activate audio.</div></section>
 </div>
@@ -324,7 +339,8 @@ const pref={get(key,fallback=null){try{return localStorage.getItem(key)??fallbac
 let runtimeConfig=null,lastStats=null,privacy=pref.get('wopr-privacy')==='on',runtimeStopped=false,statsBusy=false;
 let reducedMotion=pref.get('wopr-motion',matchMedia('(prefers-reduced-motion: reduce)').matches?'on':'off')==='on';
 let wallboard=pref.get('wopr-wallboard')==='on';
-let mapMode='simulation',earthquakes=[],cpuHistory=[];
+let mapMode='daylight',mapChosen=false,earthquakes=[],cyberCountries=[],countryLabels={};
+let cpuHistory=[],memoryHistory=[],networkHistory=[],historySample=null;
 const available=v=>typeof v==='number'&&Number.isFinite(v);
 const number=(v,digits=1)=>available(v)?v.toFixed(digits):'N/A';
 function text(id,value){const e=$(id);if(e)e.textContent=value==null?'N/A':String(value);}
@@ -404,6 +420,15 @@ function updateNetBlips(){
     ctx.fillStyle='rgba(50,255,50,0.15)';ctx.fill();
   }
 }
+function plotHistory(id,values,scale){
+  // Break lines at unavailable samples instead of joining across missing readings.
+  const groups=[];let current=[];
+  values.forEach((v,i)=>{if(available(v))current.push(`${i*300/59},${54-v/scale*52}`);else if(current.length){groups.push(current);current=[];}});
+  if(current.length)groups.push(current);
+  const el=$(id),svg=el.parentElement;svg.querySelectorAll('[data-history="'+id+'"]').forEach(e=>e.remove());
+  el.setAttribute('points',groups.shift()?.join(' ')??'');
+  for(const points of groups){const part=el.cloneNode();part.removeAttribute('id');part.dataset.history=id;part.setAttribute('points',points.join(' '));svg.appendChild(part);}
+}
 setInterval(updateNetBlips,800);
 
 function updateDashboard(d){
@@ -414,7 +439,7 @@ function updateDashboard(d){
   text('proc-count',available(d.processes)?'['+d.processes+' ACTIVE]':'[UNAVAILABLE]');
   if(d.cpu){
     const t=d.cpu.temp_c,dc=available(t)?tempToDefcon(t):{level:'N/A',desc:'SENSOR UNAVAILABLE',color:'var(--green-dim)'},el=$('defcon-display');
-    if(!runtimeConfig){el.textContent=dc.level;el.style.color=dc.color;text('defcon-desc',dc.desc);}
+    el.textContent=dc.level;el.style.color=dc.color;text('defcon-desc',dc.desc);
     text('cpu-temp',number(t));text('gpu-temp',number(d.cpu.gpu_temp_c));
     text('cpu-unit',available(t)?'°C':'');text('gpu-unit',available(d.cpu.gpu_temp_c)?'°C':'');
     document.getElementById('throttle-warn').style.display=(d.cpu.throttled&&d.cpu.throttled!=='0x0')?'block':'none';
@@ -450,11 +475,11 @@ async function fetchStats(){
 setInterval(()=>{if(!document.hidden)fetchStats();},POLL_INTERVAL);setTimeout(fetchStats,500);
 
 // ============================================================
-// THREAT MAP ENGINE — dual canvas: static map + attack overlay
+// WORLD WATCH — static geography + calculated daylight and public observations
 // ============================================================
 const mapC=document.getElementById('map-canvas'),mapX=mapC.getContext('2d');
 const tmC=document.getElementById('threat-canvas'),tmX=tmC.getContext('2d');
-let attacks=[],totalAtk=0,atkTimes=[],geoData=null;
+let geoData=null,nightCells=[],daylightMinute=null;
 let mapArea={x:0,y:0,w:0,h:0};
 
 function computeMapArea(){
@@ -534,44 +559,63 @@ function renderStaticMap(){
 // Fetch Natural Earth GeoJSON (public domain, served locally)
 fetch('/data/ne_110m_land.json').then(r=>r.json()).then(d=>{geoData=d;renderStaticMap();}).catch(()=>{});
 
-const atkNames=['CVE-2024-3400 PAN-OS','Log4Shell RCE','WannaCry Variant','Emotet Loader','Cobalt Strike Beacon','SIMATIC WinCC Exploit','Mirai Botnet Scan','ZeroLogon Attempt','BlueKeep RDP','SolarWinds SUNBURST','PrintNightmare','ProxyShell Exchange','MOVEit SQLi','Apache Struts RCE','Shellshock CGI','Heartbleed Probe','EternalBlue SMB','Ryuk Ransomware','LockBit 3.0 Drop','BlackCat ALPHV','IcedID Downloader','QakBot C2','Brute Force SSH','DDoS Amplification','DNS Tunneling','Credential Stuffing','Port Scan Recon','SQL Injection','XSS Reflected','Path Traversal'];
-const atkTypes=[{name:'MALWARE',color:'#ff3333'},{name:'EXPLOIT',color:'#ffaa00'},{name:'PHISHING',color:'#ff6600'},{name:'SCAN',color:'#33ff33'}];
+fetch('/data/country-labels.json').then(r=>{if(!r.ok)throw new Error('Map labels missing');return r.json();}).then(d=>{
+  countryLabels=d.countries??{};updateMapMode();
+}).catch(()=>{countryLabels={};updateMapMode();});
 
-function spawnAtk(){
-  const si=Math.floor(Math.random()*cities.length);
-  let di=Math.floor(Math.random()*cities.length);while(di===si)di=Math.floor(Math.random()*cities.length);
-  const s=cities[si],d=cities[di],[sx,sy]=geo(s[1],s[2]),[dx,dy]=geo(d[1],d[2]);
-  const dist=Math.sqrt((dx-sx)**2+(dy-sy)**2);
-  const type=atkTypes[Math.floor(Math.random()*atkTypes.length)];
-  attacks.push({sx,sy,dx,dy,mx:(sx+dx)/2,my:Math.min(sy,dy)-dist*(0.2+Math.random()*.3),progress:0,speed:.006+Math.random()*.014,color:type.color,impact:0,name:atkNames[Math.floor(Math.random()*atkNames.length)],src:s[0],dst:d[0]});
-  totalAtk++;atkTimes.push(Date.now());
-  document.getElementById('attack-count').textContent=totalAtk;
-  const now=Date.now();atkTimes=atkTimes.filter(t=>now-t<60000);
-  document.getElementById('attack-rate').textContent=atkTimes.length;
+// Approximate solar position including equation of time; no network or location permission.
+function solarPosition(date){
+  const rad=Math.PI/180,days=(date-Date.UTC(date.getUTCFullYear(),0,0))/86400000;
+  const angle=2*Math.PI/365*(days-1);
+  const equation=229.18*(.000075+.001868*Math.cos(angle)-.032077*Math.sin(angle)-.014615*Math.cos(2*angle)-.040849*Math.sin(2*angle));
+  const declination=.006918-.399912*Math.cos(angle)+.070257*Math.sin(angle)-.006758*Math.cos(2*angle)+.000907*Math.sin(2*angle)-.002697*Math.cos(3*angle)+.00148*Math.sin(3*angle);
+  const minutes=date.getUTCHours()*60+date.getUTCMinutes()+date.getUTCSeconds()/60;
+  return {longitude:((180-(minutes+equation)/4+540)%360)-180,latitude:declination/rad};
 }
-// ---- Attack overlay (redrawn each frame, transparent canvas) ----
-function drawAttacks(){
-  const W=tmC.width,H=tmC.height;tmX.clearRect(0,0,W,H);
-  if(mapMode==='earthquakes'){
-    earthquakes.slice(0,150).forEach(q=>{if(!available(q.longitude)||!available(q.latitude))return;const[x,y]=geo(q.longitude,q.latitude);tmX.beginPath();tmX.arc(x,y,Math.max(2,Math.min(12,(q.magnitude??0)*1.8)),0,Math.PI*2);tmX.strokeStyle='#ffaa00';tmX.stroke();tmX.fillStyle='#ffaa0055';tmX.fill();});
-    setTimeout(()=>requestAnimationFrame(drawAttacks),1000);return;
-  }
-  if(reducedMotion||document.hidden){setTimeout(()=>requestAnimationFrame(drawAttacks),1000);return;}
-  attacks.forEach(a=>{
-    a.progress+=a.speed;const t=Math.min(a.progress,1);
-    tmX.beginPath();tmX.moveTo(a.sx,a.sy);tmX.quadraticCurveTo(a.mx,a.my,a.dx,a.dy);tmX.strokeStyle=a.color+'10';tmX.lineWidth=1;tmX.stroke();
-    for(let i=0;i<=25;i++){const s=i/25;if(s>t)break;const px=(1-s)*(1-s)*a.sx+2*(1-s)*s*a.mx+s*s*a.dx,py=(1-s)*(1-s)*a.sy+2*(1-s)*s*a.my+s*s*a.dy;tmX.globalAlpha=Math.max(.05,s/t*.6);tmX.beginPath();tmX.arc(px,py,1,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();}
-    tmX.globalAlpha=1;
-    const hx=(1-t)*(1-t)*a.sx+2*(1-t)*t*a.mx+t*t*a.dx,hy=(1-t)*(1-t)*a.sy+2*(1-t)*t*a.my+t*t*a.dy;
-    tmX.beginPath();tmX.arc(hx,hy,2.5,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();
-    tmX.beginPath();tmX.arc(hx,hy,7,0,Math.PI*2);tmX.fillStyle=a.color+'22';tmX.fill();
-    if(t>=1){a.impact+=.04;const r=10+a.impact*18,ia=Math.max(0,.4-a.impact);tmX.globalAlpha=ia;tmX.beginPath();tmX.arc(a.dx,a.dy,r,0,Math.PI*2);tmX.fillStyle=a.color;tmX.fill();tmX.globalAlpha=1;}
+function sunlight(lon,lat,sun){
+  const r=Math.PI/180;
+  return Math.sin(lat*r)*Math.sin(sun.latitude*r)+Math.cos(lat*r)*Math.cos(sun.latitude*r)*Math.cos((lon-sun.longitude)*r);
+}
+function mappedCyber(){
+  return cyberCountries.filter(row=>{
+    const p=countryLabels[row.country];
+    return row.reports>0&&available(p?.longitude)&&available(p?.latitude)&&Math.abs(p.longitude)<=180&&Math.abs(p.latitude)<=90;
   });
-  attacks=attacks.filter(a=>a.impact<1);
-  requestAnimationFrame(drawAttacks);
 }
-function schedAtk(){if(mapMode==='simulation'&&!reducedMotion&&!document.hidden)spawnAtk();setTimeout(schedAtk,500+Math.random()*1500);}
-drawAttacks();setTimeout(schedAtk,800);
+function drawWorld(){
+  if(document.hidden)return;
+  tmX.clearRect(0,0,tmC.width,tmC.height);
+  const now=new Date(),minute=Math.floor(now.getTime()/60000),sun=solarPosition(now);
+  if(daylightMinute!==minute){
+    daylightMinute=minute;nightCells=[];
+    for(let lat=-90;lat<90;lat+=3)for(let lon=-180;lon<180;lon+=3){
+      const light=sunlight(lon+1.5,lat+1.5,sun);
+      if(light<0)nightCells.push([lon,lat,Math.min(.62,.16-light*.46)]);
+    }
+  }
+  nightCells.forEach(([lon,lat,alpha])=>{const[x,y]=geo(lon,lat+3);tmX.fillStyle='rgba(0,0,0,'+alpha+')';tmX.fillRect(x,y,mapArea.w/120+.5,mapArea.h/60+.5);});
+  const[sx,sy]=geo(sun.longitude,sun.latitude);
+  tmX.fillStyle='#ffcc55';tmX.beginPath();tmX.arc(sx,sy,4,0,Math.PI*2);tmX.fill();
+  const pulse=reducedMotion?0:Math.sin(now.getTime()/700)*2;
+  if(mapMode==='cyber'){
+    const rows=mappedCyber(),max=Math.max(1,...rows.map(row=>row.reports));
+    rows.forEach(row=>{
+      const p=countryLabels[row.country],[x,y]=geo(p.longitude,p.latitude);
+      const radius=3+12*Math.sqrt(row.reports/max);
+      tmX.beginPath();tmX.arc(x,y,Math.max(2,radius+pulse),0,Math.PI*2);tmX.strokeStyle='#ff7744aa';tmX.stroke();
+      tmX.beginPath();tmX.arc(x,y,radius*.55,0,Math.PI*2);tmX.fillStyle='#ff553388';tmX.fill();
+    });
+  }else if(mapMode==='earthquakes'){
+    earthquakes.slice(0,150).forEach(q=>{if(!available(q.longitude)||!available(q.latitude))return;const[x,y]=geo(q.longitude,q.latitude);tmX.beginPath();tmX.arc(x,y,Math.max(2,Math.min(12,(q.magnitude??0)*1.8))+pulse*.3,0,Math.PI*2);tmX.strokeStyle='#ffaa00';tmX.stroke();tmX.fillStyle='#ffaa0055';tmX.fill();});
+  }
+}
+// Bounded animation frequency, independent of feed refresh; rings are not new events.
+setInterval(drawWorld,250);
+tmC.addEventListener('mousemove',event=>{
+  const bounds=tmC.getBoundingClientRect(),x=(event.clientX-bounds.left)*tmC.width/bounds.width,y=(event.clientY-bounds.top)*tmC.height/bounds.height;
+  const row=mapMode==='cyber'?mappedCyber().find(row=>{const p=countryLabels[row.country],[px,py]=geo(p.longitude,p.latitude);return Math.hypot(x-px,y-py)<16;}):null;
+  tmC.title=row?countryLabels[row.country].name+': '+row.reports.toLocaleString()+' reports / '+row.sources.toLocaleString()+' sources / '+row.targets.toLocaleString()+' targets (country aggregate)':'Day/night shading is calculated locally.';
+});
 
 // ============================================================
 // JOSHUA TERMINAL - LINUX COMMAND ASSISTANT
@@ -730,6 +774,11 @@ if(voiceBtn){
 function updateClock(){
   const n=new Date(),z=v=>String(v).padStart(2,'0');
   document.getElementById('clock').textContent=z(n.getUTCHours())+':'+z(n.getUTCMinutes())+':'+z(n.getUTCSeconds())+' ZULU // '+n.getUTCFullYear()+'-'+z(n.getUTCMonth()+1)+'-'+z(n.getUTCDate());
+  $('world-clocks').replaceChildren();
+  for(const [name,zone] of [['ZULU','UTC'],['WASHINGTON','America/New_York'],['LONDON','Europe/London'],['TOKYO','Asia/Tokyo']]){
+    const card=node('div'),time=node('time',new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(n));
+    time.dateTime=n.toISOString();card.append(node('small',name),time);$('world-clocks').appendChild(card);
+  }
 }
 setInterval(updateClock,1000);updateClock();
 
@@ -960,56 +1009,94 @@ function windowsRespond(input){
 // Shared Pi/Windows presentation. Only fixed same-origin API routes are fetched.
 function renderExtended(d){
   const cpu=d.cpu?.usage_percent;
-  if(available(cpu)){cpuHistory.push(Math.min(100,Math.max(0,cpu)));cpuHistory=cpuHistory.slice(-60);}
-  $('cpu-history').setAttribute('points',cpuHistory.map((v,i)=>`${i*300/59},${54-v*.52}`).join(' '));
-  $('per-core').replaceChildren();
-  (Array.isArray(d.per_core)?d.per_core:[]).slice(0,128).forEach((v,i)=>{const bar=node('span');bar.style.height=(available(v)?Math.min(100,Math.max(0,v)):0)+'%';bar.title='CORE '+i+': '+number(v)+'%';$('per-core').appendChild(bar);});
+  const sample=d.timestamp??d;
+  if(sample!==historySample){
+    historySample=sample;
+    cpuHistory=[...cpuHistory,available(cpu)?Math.min(100,Math.max(0,cpu)):null].slice(-60);
+    memoryHistory=[...memoryHistory,available(d.memory?.percent)?Math.min(100,Math.max(0,d.memory.percent)):null].slice(-60);
+    const rx=d.network?.rx_rate_kbs,tx=d.network?.tx_rate_kbs;
+    networkHistory=[...networkHistory,available(rx)&&available(tx)?rx+tx:null].slice(-60);
+  }
+  plotHistory('cpu-history',cpuHistory,100);plotHistory('memory-history',memoryHistory,100);
+  plotHistory('network-history',networkHistory,Math.max(1,...networkHistory.filter(available)));
+  const cores=(Array.isArray(d.per_core)?d.per_core:[]).slice(0,128);
+  for(const id of ['per-core','activity-cores']){
+    $(id).replaceChildren();
+    (cores.length?cores:[cpu]).forEach((v,i)=>{if(!available(v))return;const bar=node('span');bar.style.height=Math.min(100,Math.max(1,v))+'%';bar.title=(cores.length?'CORE '+i:'TOTAL CPU')+': '+number(v)+'%';$(id).appendChild(bar);});
+  }
+  const thermal=available(d.cpu?.temp_c);
+  $('thermal-readings').hidden=!thermal;$('activity-readings').hidden=thermal;
+  document.querySelector('.defcon-panel .panel-title').textContent=thermal?'◈ THERMAL CONDITION':'◈ LOCAL COMPUTE ACTIVITY';
+  text('activity-cpu',available(cpu)?number(cpu)+'%':'SAMPLING');
+  text('activity-summary',(d.cpu?.cores??'')+' LOGICAL CORES / MEMORY '+number(d.memory?.percent)+'%');
+  // Hide unsupported Pi-style fields rather than showing permanently empty placeholders.
+  $('load-avg').parentElement.hidden=![d.cpu?.load_1m,d.cpu?.load_5m,d.cpu?.load_15m].every(available);
+  $('cpu-freq').parentElement.hidden=!available(d.cpu?.freq_mhz);
+  $('gpu-reading').hidden=!available(d.cpu?.gpu_temp_c);
   const battery=d.battery;
-  text('power-rates','BATTERY: '+(battery?number(battery.percent)+'% / '+(battery.plugged===true?'AC CONNECTED':battery.plugged===false?'ON BATTERY':'AC UNKNOWN'):'UNAVAILABLE')+
-    '\nREMAINING: '+(available(battery?.seconds_left)&&battery.seconds_left>=0?Math.round(battery.seconds_left/60)+' MIN':'N/A')+
-    '\nDISK READ: '+number(d.disk_io?.read_rate_kbs)+' KiB/s\nDISK WRITE: '+number(d.disk_io?.write_rate_kbs)+' KiB/s');
-  text('process-list',Array.isArray(d.top_processes)&&d.top_processes.length?d.top_processes.slice(0,12).map((p,i)=>(privacy?'PROCESS '+(i+1):String(p.name??'UNKNOWN').slice(0,40))+'\n CPU '+number(p.cpu_percent)+'% / RAM '+number(p.memory_mb)+' MB').join('\n'):'TOP PROCESSES UNAVAILABLE');
+  const power=[];
+  if(available(battery?.percent)){
+    power.push('BATTERY: '+number(battery.percent)+'%'+(battery.plugged===true?' / AC CONNECTED':battery.plugged===false?' / ON BATTERY':''));
+    if(available(battery.seconds_left)&&battery.seconds_left>=0)power.push('REMAINING: '+Math.round(battery.seconds_left/60)+' MIN');
+  }else power.push('UPTIME: '+String(d.uptime??'COLLECTING'));
+  for(const [label,value] of [['DISK READ',d.disk_io?.read_rate_kbs],['DISK WRITE',d.disk_io?.write_rate_kbs]])if(available(value))power.push(label+': '+number(value)+' KiB/s');
+  if(power.length===1)power.push('MEMORY AVAILABLE: '+number(d.memory?.available_mb??(available(d.memory?.total_mb)&&available(d.memory?.used_mb)?d.memory.total_mb-d.memory.used_mb:null))+' MB');
+  text('power-rates',power.join('\n'));
+  const processes=Array.isArray(d.top_processes)&&d.top_processes.length;
+  text('process-title',processes?'◈ PROCESS RESOURCE SNAPSHOT':'◈ SESSION RESOURCE SNAPSHOT');
+  text('process-caption',processes?'Names and resource use only. Privacy mode masks names.':'Local activity / no process detail required.');
+  text('process-list',processes?d.top_processes.slice(0,12).map((p,i)=>(privacy?'PROCESS '+(i+1):String(p.name??'UNKNOWN').slice(0,40))+'\n CPU '+number(p.cpu_percent)+'% / RAM '+number(p.memory_mb)+' MB').join('\n'):
+    'UPTIME: '+String(d.uptime??'COLLECTING')+'\nPROCESSES: '+String(d.processes??'COLLECTING')+'\nMEMORY: '+number(d.memory?.percent)+'%\nSYSTEM DRIVE: '+number(d.disk?.percent)+'%');
   const sec=d.security;
-  text('security-status',sec?['DEFENDER: '+String(sec.defender?.state??'unavailable')+' / enabled: '+String(sec.defender?.enabled??'unknown'),'SIGNATURES: '+String(sec.defender?.signatures_updated??'unavailable'),'FIREWALL: '+String(sec.firewall?.state??'unavailable')+' / enabled: '+String(sec.firewall?.enabled??'unknown')].join('\n'):'SECURITY PROBES UNAVAILABLE');
+  const security=[];
+  for(const [key,label] of [['defender','DEFENDER'],['firewall','FIREWALL']])if(sec?.[key]?.state==='available'&&typeof sec[key].enabled==='boolean')security.push(label+': '+(sec[key].enabled?'ENABLED':'DISABLED'));
+  text('storage-title',security.length?'◈ SECURITY / STORAGE':'◈ STORAGE / SYSTEM SNAPSHOT');
+  text('storage-caption',security.length?'Read-only observations; only available probes shown.':'Drive capacity and system activity.');
+  text('security-status',security.join('\n'));$('security-status').hidden=!security.length;
   const disks=(Array.isArray(d.disks)?d.disks:[]).slice(0,8).map((x,i)=>(privacy?'DISK '+(i+1):x.mountpoint)+' '+number(x.percent)+'% / '+number(x.free_gb)+' GB FREE');
+  if(!disks.length&&available(d.disk?.percent))disks.push('SYSTEM DRIVE '+number(d.disk.percent)+'% / '+number(d.disk.free_gb??(d.disk.total_gb-d.disk.used_gb))+' GB FREE');
   const adapters=(Array.isArray(d.adapters)?d.adapters:[]).slice(0,8).map((x,i)=>(privacy?'ADAPTER '+(i+1):x.name)+' '+(x.is_up===true?'UP':x.is_up===false?'DOWN':'UNKNOWN')+' RX '+number(x.rx_rate_kbs)+' / TX '+number(x.tx_rate_kbs)+' KiB/s'+(privacy?'': '\n '+(Array.isArray(x.addresses)?x.addresses.join(', '):'N/A')));
-  text('disk-adapters',[...disks,...adapters].join('\n'));
+  text('disk-adapters',[...disks,...adapters,'LOGICAL CORES: '+String(d.cpu?.cores??'COLLECTING'),'UPTIME: '+String(d.uptime??'COLLECTING')].join('\n'));
+  if(cpuHistory.length<=1)for(const [id,value] of [['rx-rate',d.network?.rx_rate_kbs],['tx-rate',d.network?.tx_rate_kbs]])if(!available(value))text(id,'SAMPLING');
   if(runtimeConfig){
     const panel=document.querySelector('.system-status');panel.querySelectorAll('.windows-service').forEach(e=>e.remove());
     panel.querySelectorAll('.status-line').forEach(e=>{e.hidden=!e.querySelector('#proc-count');});
     const services=Array.isArray(d.windows_services)?d.windows_services:[];
-    if(!services.length)panel.appendChild(node('div','WINDOWS SERVICES: UNAVAILABLE','windows-service caption'));
-    services.slice(0,12).forEach(s=>{const line=node('div',null,'windows-service status-line');line.append(node('span',s.name),node('span',String(s.status??'unavailable').toUpperCase(),'status-warn'));panel.appendChild(line);});
+    services.filter(s=>s.status&&s.status!=='unavailable').slice(0,8).forEach(s=>{const line=node('div',null,'windows-service status-line');line.append(node('span',s.name),node('span',String(s.status).toUpperCase(),s.status==='running'?'status-ok':'status-warn'));panel.appendChild(line);});
+    for(const [label,value] of [['LOGICAL CORES',d.cpu?.cores],['MEMORY',number(d.memory?.percent)+'%'],['UPTIME',d.uptime]]){const line=node('div',null,'windows-service status-line');line.append(node('span',label),node('span',value??'COLLECTING','status-ok'));panel.appendChild(line);}
   }
 }
+const FEED_KEYS=['isc','cyber','cisa','noaa','usgs'];
 let lastIntel=null,intelBusy=false;
 function renderIntel(payload){
   lastIntel=payload;$('intel-feeds').replaceChildren();
   const feeds=payload?.feeds??{};
   earthquakes=Array.isArray(feeds.usgs?.data?.items)?feeds.usgs.data.items:[];
-  for(const key of ['isc','cisa','noaa','usgs']){
+  cyberCountries=Array.isArray(feeds.cyber?.data?.items)?feeds.cyber.data.items.filter(row=>typeof row.country==='string'&&/^[A-Z]{2}$/.test(row.country)&&['reports','sources','targets'].every(k=>Number.isSafeInteger(row[k])&&row[k]>=0)).slice(0,256):[];
+  if(!mapChosen&&cyberCountries.length&&feeds.cyber?.state!=='offline'){mapMode='cyber';$('map-mode').value=mapMode;}
+  for(const key of FEED_KEYS){
     const feed=feeds[key]??{},card=node('section',null,'feed-card');
     card.appendChild(node('div',String(feed.source??key.toUpperCase())+' / '+String(feed.state??'unavailable').toUpperCase(),'feed-state'));
     card.appendChild(node('div','FETCHED: '+String(feed.fetched_at??'NEVER')+' / OBSERVED: '+String(feed.observed_at??'UNKNOWN'),'caption'));
     const data=feed.data;let lines=[];
-    if(key==='isc'&&data){lines=['INFOCON: '+String(data.level??'unavailable'),String(data.description??''),'SANS ISC: public Internet conditions, not local health. Review provider data-use terms.'];text('defcon-display',String(data.level??'N/A').toUpperCase());text('defcon-desc','SANS ISC / '+String(feed.state??'unavailable').toUpperCase());}
+    if(key==='isc'&&data)lines=['INFOCON: '+String(data.level??'unavailable'),String(data.description??'')];
+    if(key==='cyber'&&data)lines=cyberCountries.slice(0,10).map(row=>row.country+' / '+row.reports.toLocaleString()+' REPORTS / '+row.sources.toLocaleString()+' SOURCES');
     if(key==='cisa'&&data){lines=['KEV CATALOG '+String(data.catalog_version??'N/A')+' / '+String(data.total??'N/A')+' ENTRIES','NOT AN INSTALLED-SOFTWARE MATCH'];(Array.isArray(data.items)?data.items:[]).slice(0,15).forEach(x=>lines.push([x.cve_id,x.vendor,x.product,x.name,'ADDED '+(x.date_added??'N/A'),'DUE '+(x.due_date??'N/A'),x.required_action].filter(Boolean).join(' / ')));}
     if(key==='noaa'&&data)lines=['PLANETARY Kp: '+number(data.kp)+' / OBSERVED '+String(data.observed_at??feed.observed_at??'N/A'),'Space weather; not a local security reading.'];
     if(key==='usgs'&&data)lines=earthquakes.slice(0,15).map(x=>'M '+number(x.magnitude)+' / '+String(x.place??'UNKNOWN')+' / '+String(x.time??'N/A'));
-    if(!lines.length)lines=[feed.state==='offline'?'OFFLINE / NO NEW PUBLIC REQUESTS':'NO DATA AVAILABLE'];
+    if(!lines.length)lines=[feed.state==='offline'?'OFFLINE / WORLD CLOCKS AND DAYLIGHT READY':data?'NO OBSERVATIONS IN THIS RESPONSE':'NO DATA AVAILABLE / RETRY AUTOMATIC'];
     if(feed.error)lines.push('STATUS: '+String(feed.error).slice(0,250));
     card.appendChild(node('div',lines.join('\n'),'feed-records'));
     // Feed URLs are untrusted data. Only HTTPS links to the named providers are clickable.
     try{const url=new URL(feed.url);if(url.protocol==='https:'&&['isc.sans.edu','www.cisa.gov','services.swpc.noaa.gov','earthquake.usgs.gov'].includes(url.hostname)){const a=node('a','SOURCE / ATTRIBUTION');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';card.appendChild(a);}}catch{}
     $('intel-feeds').appendChild(card);
   }
-  if(!feeds.isc?.data){text('defcon-display','N/A');text('defcon-desc','GLOBAL CONTEXT / '+String(feeds.isc?.state??'unavailable').toUpperCase());}
   updateMapMode();
 }
 async function fetchIntel(){
   if(!runtimeConfig||intelBusy||runtimeStopped)return;intelBusy=true;
   try{const r=await localRequest('/api/intel');if(!r.ok)throw new Error('HTTP '+r.status);renderIntel(await r.json());}
-  catch{renderIntel({feeds:Object.fromEntries(['isc','cisa','noaa','usgs'].map(k=>[k,{state:'unavailable',error:'LOCAL INTELLIGENCE ENDPOINT UNREACHABLE'}]))});}
+  catch{renderIntel({feeds:Object.fromEntries(FEED_KEYS.map(k=>[k,{...lastIntel?.feeds?.[k],state:lastIntel?.feeds?.[k]?.data?'stale':'unavailable',error:'LOCAL INTELLIGENCE ENDPOINT UNREACHABLE'}]))});}
   finally{intelBusy=false;}
 }
 async function setFeedConsent(enabled){
@@ -1020,9 +1107,22 @@ async function setFeedConsent(enabled){
 }
 function updateFeedButton(){text('feeds-toggle',runtimeConfig?.feeds_enabled?'PUBLIC FEEDS: ON / GO OFFLINE':'PUBLIC FEEDS: OFFLINE / ENABLE');}
 function updateMapMode(){
-  const real=mapMode==='earthquakes';text('map-title',real?'◈ USGS EARTHQUAKES — REAL PUBLIC EVENTS':'◈ WARGAMES SIMULATION — NOT LIVE ATTACKS');
-  document.querySelector('.map-overlay').hidden=real;document.querySelector('.map-legend').hidden=real;
-  text('map-state','FICTIONAL ROUTES / NO DETECTION');text('map-quote',real?'USGS / '+String(lastIntel?.feeds?.usgs?.state??'unavailable').toUpperCase()+' / '+earthquakes.length+' EVENTS / SEE TIMESTAMPS BELOW':'A STRANGE GAME — THE ONLY WINNING MOVE IS NOT TO PLAY');
+  const cyber=mapMode==='cyber',quake=mapMode==='earthquakes',feed=lastIntel?.feeds?.[cyber?'cyber':'usgs'];
+  const rows=mappedCyber(),hasData=cyber?rows.length>0:quake?earthquakes.length>0:false;
+  text('map-title',cyber?'◈ OBSERVED CYBER ACTIVITY / SANS ISC':quake?'◈ USGS EARTHQUAKES — REAL PUBLIC EVENTS':'◈ WORLD WATCH / DAYLIGHT');
+  document.querySelector('.map-overlay').hidden=!cyber||!hasData;
+  text('map-legend',cyber&&hasData?'RING SIZE: REPORT VOLUME / COUNTRY LABEL POINTS':quake&&hasData?'RING SIZE: EARTHQUAKE MAGNITUDE':'SHADED: NIGHT / LOCAL CALCULATION');
+  text('cyber-total',rows.length+' MAPPED COUNTRIES');
+  text('cyber-ranking',rows.slice(0,5).map(row=>row.country+' '+row.reports.toLocaleString()+' reports').join('\n'));
+  text('map-state',!cyber&&!quake?'OFFLINE READY / DAYLIGHT AND CLOCKS CALCULATED ON THIS DEVICE':
+    String(feed?.state??'offline').toUpperCase()+' / '+(hasData?(cyber?rows.length+' countries mapped / '+(cyberCountries.length-rows.length)+' zero or unmapped entries':earthquakes.length+' events'):'DAYLIGHT VIEW ACTIVE / '+(feed?.data?'NO MAPPABLE OBSERVATIONS':runtimeConfig?.feeds_enabled?'WAITING FOR PUBLIC DATA':'ENABLE PUBLIC FEEDS FOR THIS LAYER'))+
+    (hasData?' / FETCHED '+String(feed?.fetched_at??'UNKNOWN'):''));
+  const source=$('map-source');source.replaceChildren();
+  if(cyber){
+    const link=node('a','SANS Technology Institute, Internet Storm Center');link.href='https://isc.sans.edu/';link.target='_blank';link.rel='noopener noreferrer';source.append(link,document.createTextNode(' / Country report aggregates, not a live stream or attack routes. Locations are representative, not attacker attribution.'));
+  }else if(quake)source.textContent='USGS / '+(feed?.observed_at?'PUBLISHED '+feed.observed_at:'Public earthquake observations')+' / Last-good session data retained when offline.';
+  else source.textContent='Approximate solar position / no Internet or location permission needed.';
+  drawWorld();
 }
 function applyPreferences(){
   document.body.classList.toggle('amber',pref.get('wopr-theme')==='amber');document.body.classList.toggle('reduced',reducedMotion);
@@ -1034,10 +1134,10 @@ function applyPreferences(){
 }
 $('privacy-toggle').onclick=()=>{privacy=!privacy;pref.set('wopr-privacy',privacy?'on':'off');applyPreferences();if(lastStats)updateDashboard(lastStats);};
 $('theme-toggle').onclick=()=>{pref.set('wopr-theme',document.body.classList.contains('amber')?'green':'amber');applyPreferences();};
-$('motion-toggle').onclick=()=>{reducedMotion=!reducedMotion;attacks=[];pref.set('wopr-motion',reducedMotion?'on':'off');applyPreferences();};
+$('motion-toggle').onclick=()=>{reducedMotion=!reducedMotion;pref.set('wopr-motion',reducedMotion?'on':'off');applyPreferences();drawWorld();};
 $('fullscreen-toggle').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{appendTerminal('FULLSCREEN UNAVAILABLE IN THIS BROWSER','error');}};
 $('wallboard-toggle').onclick=()=>{wallboard=!wallboard;pref.set('wopr-wallboard',wallboard?'on':'off');applyPreferences();setTimeout(resizeMap,50);};
-$('map-mode').onchange=e=>{mapMode=e.target.value;attacks=[];updateMapMode();};
+$('map-mode').onchange=e=>{mapMode=e.target.value;mapChosen=true;updateMapMode();};
 $('consent-enable').onclick=()=>setFeedConsent(true);$('consent-offline').onclick=()=>setFeedConsent(false);
 $('feeds-toggle').onclick=()=>{if(runtimeConfig?.feeds_enabled)setFeedConsent(false);else $('feed-consent').hidden=false;};
 $('shutdown-button').onclick=async()=>{if(!confirm('Stop the local WOPR runtime? This does not shut down your PC.'))return;try{await postJSON('/api/shutdown',{});runtimeStopped=true;stopSpeech();text('data-status','LOCAL RUNTIME STOPPED');$('shutdown-button').disabled=true;}catch(e){appendTerminal('STOP FAILED / '+e.message,'error');}};
@@ -1060,10 +1160,9 @@ async function detectRuntime(){
     const r=await localRequest('/api/config');if(!r.ok)return;const config=await r.json();if(config.platform!=='windows'||typeof config.session_token!=='string')return;
     runtimeConfig=config;text('edition-label','WINDOWS // LOOPBACK COMMAND CENTER');$('feeds-toggle').hidden=false;$('shutdown-button').hidden=false;$('intel-panel').hidden=false;
     wallboard=pref.get('wopr-wallboard','on')==='on';applyPreferences();setTimeout(resizeMap,50);
-    document.querySelector('.defcon-panel .panel-title').textContent='◈ GLOBAL INTERNET CONDITION';document.querySelector('.defcon-label').textContent='SANS ISC INFOCON / NOT LOCAL HEALTH';
+    for(const option of $('map-mode').options)option.disabled=false;
     document.querySelector('.threat-panel .panel-title').textContent='◈ LOCAL FLIGHT RECORDER';
     $('threat-log').title='Derived local telemetry events, not Windows Event Log or intrusion detections.';
-    $('defcon-display').style.fontSize='26px';text('defcon-display','N/A');text('defcon-desc','PUBLIC FEEDS OFFLINE');
     termOut.replaceChildren();appendTerminal('GREETINGS PROFESSOR FALKEN.\nJOSHUA / OFFLINE POWERSHELL + AZURE CLI REFERENCE.\nNOT A SHELL OR GENERAL LLM. NOTHING YOU TYPE IS EXECUTED.\nTYPE help, topics, OR search networking. NEVER ENTER CREDENTIALS.');
     textVoiceStatus(config.speech?.available?'LOCAL '+String(config.speech.engine??'ESPEAK').toUpperCase()+' READY / CLICK TEST':'LOCAL ESPEAK UNAVAILABLE / CLICK TEST FOR STATUS');
     updateFeedButton();$('feed-consent').hidden=!!config.feeds_enabled||pref.get('wopr-feed-choice')==='chosen';
@@ -1071,6 +1170,7 @@ async function detectRuntime(){
   }catch{/* Existing Pi CGI has no config route; preserve Linux helper and GET speech. */}
 }
 detectRuntime();setInterval(()=>{if(!document.hidden)fetchIntel();},60000);
+setInterval(()=>{if(!document.hidden&&runtimeConfig?.feeds_enabled&&FEED_KEYS.some(k=>lastIntel?.feeds?.[k]?.state==='loading'))fetchIntel();},5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){fetchStats();if(runtimeConfig)fetchIntel();}});
 window.addEventListener('pagehide',stopSpeech);
 

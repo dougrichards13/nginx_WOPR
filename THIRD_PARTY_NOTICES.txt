@@ -35,7 +35,10 @@ Sonic (eSpeak speech dependency)
 
 Natural Earth map data
   https://www.naturalearthdata.com/
-  Public domain. Served from the included GeoJSON file.
+  Public domain. Land polygons are served from the included GeoJSON file.
+  Country label coordinates in src/data/country-labels.json are derived from
+  Natural Earth version 5.1.2, ne_110m_admin_0_countries. They are representative
+  map label points, not event locations. The file includes its upstream URL.
 VT323 terminal font by Peter Hull
   https://github.com/google/fonts/tree/main/ofl/vt323
   SIL Open Font License 1.1. Embedded as WOFF2 so no runtime font request occurs.
@@ -43,8 +46,11 @@ VT323 terminal font by Peter Hull
 
 OPTIONAL PUBLIC DATA (not bundled live feeds; no endorsement implied)
 
-SANS Internet Storm Center / DShield InfoCon
+SANS Internet Storm Center / DShield InfoCon and country activity
+  Attribution: SANS Technology Institute, Internet Storm Center,
+  https://isc.sans.edu
   https://isc.sans.edu/infocon.html
+  https://isc.sans.edu/api/country?json
   https://isc.sans.edu/api/
   Attribution-NonCommercial-ShareAlike 4.0 terms as described by ISC; the
   operator also specifies best-effort service, responsible polling, attribution

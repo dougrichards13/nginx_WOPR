@@ -91,6 +91,11 @@ class LiveBrowserTests(unittest.TestCase):
         self.wait_js("document.fonts.check('18px VT323')")
         self.assertIn("LIVE", self.page.locator("#data-status").inner_text())
         self.assertIn("N/A", self.page.locator("#cpu-temp").inner_text())
+        self.assertFalse(self.page.locator("#thermal-readings").is_visible())
+        self.assertTrue(self.page.locator("#activity-readings").is_visible())
+        self.assertEqual(self.page.locator("#world-clocks time").count(), 4)
+        self.assertEqual(self.page.locator("#map-mode").input_value(), "daylight")
+        self.assertIn("OFFLINE READY", self.page.locator("#map-state").inner_text())
         self.assertGreater(self.page.locator("#per-core span").count(), 0)
         self.assertTrue(self.page.locator("#feed-consent").is_visible())
         self.assertIn("OFFLINE", self.page.locator("#intel-feeds").inner_text())
@@ -123,7 +128,8 @@ class LiveBrowserTests(unittest.TestCase):
             self.page.locator("#game-close").click()
             self.assertFalse(self.page.locator("#game-modal").is_visible())
         if os.environ.get("WOPR_SCREENSHOT"):
-            self.page.locator("#map-mode").select_option("simulation")
+            self.page.locator("#consent-offline").click()
+            self.page.locator("#map-mode").select_option("daylight")
             self.page.locator("#wallboard-toggle").click()
             self.page.wait_for_timeout(150)
             self.page.screenshot(path=os.environ["WOPR_SCREENSHOT"], full_page=True)
@@ -145,6 +151,60 @@ class LiveBrowserTests(unittest.TestCase):
         self.page.locator("#voice-stop").click()
         self.assertIn("STOPPED", self.page.locator("#voice-status").inner_text())
         self.assertEqual(self.page.evaluate("speechQueue.length"), 0)
+
+    def test_observed_map_and_session_fallback_over_real_runtime(self):
+        payload = {"feeds": {"cyber": {"state": "live", "source": "SANS ISC",
+                   "url": "https://isc.sans.edu/api/country?json",
+                   "fetched_at": "2026-10-26T12:00:00Z", "observed_at": None,
+                   "data": {"items": [
+                       {"country": "US", "reports": 120, "sources": 10, "targets": 5},
+                       {"country": "ZZ", "reports": 20, "sources": 2, "targets": 1}]}}}}
+        import json
+        self.page.route("**/api/intel", lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(payload)))
+        self.page.evaluate("fetchIntel()")
+        self.wait_js("mapMode === 'cyber' && mappedCyber().length === 1")
+        self.assertIn("120 reports", self.page.locator("#cyber-ranking").inner_text())
+        self.assertIn("1 zero or unmapped", self.page.locator("#map-state").inner_text())
+        self.assertIn("SANS Technology Institute", self.page.locator("#map-source").inner_text())
+        payload["feeds"]["cyber"]["state"] = "stale"
+        self.page.evaluate("fetchIntel()")
+        self.wait_js("document.getElementById('map-state').textContent.includes('STALE')")
+        self.page.route("**/api/intel", lambda route: route.fulfill(status=503, body="unavailable"))
+        self.page.evaluate("fetchIntel()")
+        self.wait_js("lastIntel.feeds.cyber.error")
+        self.assertIn("120 reports", self.page.locator("#cyber-ranking").inner_text())
+        self.page.locator("#map-mode").select_option("daylight")
+        self.assertFalse(self.page.locator(".map-overlay").is_visible())
+        self.page.evaluate("""() => {
+          const fixture={...lastStats, timestamp:'fallback-fixture', top_processes:[],
+            battery:null, security:null, cpu:{...lastStats.cpu,temp_c:42,gpu_temp_c:null}};
+          updateDashboard(fixture);
+        }""")
+        self.assertTrue(self.page.locator("#thermal-readings").is_visible())
+        self.assertFalse(self.page.locator("#gpu-reading").is_visible())
+        self.assertIn("SESSION RESOURCE", self.page.locator("#process-title").inner_text())
+        self.assertIn("SYSTEM DRIVE", self.page.locator("#process-list").inner_text())
+        self.assertFalse(self.page.locator("#security-status").is_visible())
+
+    def test_wallboard_does_not_clip_at_common_screen_sizes(self):
+        clipped = self.page.evaluate("""[...document.querySelectorAll('.grid>.panel')]
+            .filter(el=>el.scrollHeight>el.clientHeight+2).map(el=>el.className)""")
+        self.assertEqual(clipped, [], "First-run consent compressed the wallboard")
+        self.page.locator("#consent-offline").click()
+        for width, height in ((1920, 1080), (1366, 768), (390, 844)):
+            with self.subTest(width=width, height=height):
+                self.page.set_viewport_size({"width": width, "height": height})
+                self.page.wait_for_timeout(250)
+                layout = self.page.evaluate("""() => ({
+                  width:document.documentElement.scrollWidth,
+                  clipped:[...document.querySelectorAll('.grid>.panel')]
+                    .filter(el=>el.scrollHeight>el.clientHeight+2).map(el=>el.className),
+                  map:document.getElementById('threat-canvas').height
+                })""")
+                self.assertLessEqual(layout["width"], width)
+                self.assertEqual(layout["clipped"], [])
+                self.assertGreater(layout["map"], 100)
 
 
 if __name__ == "__main__":

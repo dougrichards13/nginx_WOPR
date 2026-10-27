@@ -20,6 +20,7 @@ except ImportError:
 
 SOURCES = {
     "isc": ("SANS Internet Storm Center", "https://isc.sans.edu/api/infocon?json", 900),
+    "cyber": ("SANS ISC / DShield country activity", "https://isc.sans.edu/api/country?json", 3600),
     "cisa": ("CISA Known Exploited Vulnerabilities", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", 21600),
     "noaa": ("NOAA SWPC Planetary K-index", "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json", 900),
     "usgs": ("USGS Earthquakes", "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson", 300),
@@ -39,6 +40,29 @@ def number(value):
 
 
 def normalize(key, raw):
+    if key == "cyber":
+        if not isinstance(raw, list) or len(raw) > 512:
+            raise ValueError("invalid country summary")
+        countries = {}
+        for record in raw:
+            code = record["country"]
+            # Empty/unknown locations are omitted, never placed at (0, 0).
+            if not isinstance(code, str) or len(code) != 2 or not code.isascii() or not code.isalpha():
+                continue
+            code = code.upper()
+            counts = {}
+            for field in ("reports", "sources", "targets"):
+                value = record[field]
+                if type(value) is not int or not 0 <= value <= 10**15:
+                    raise ValueError("invalid country count")
+                counts[field] = value
+            if code in countries:
+                raise ValueError("duplicate country")
+            countries[code] = {"country": code, **counts}
+        # No event time or source-to-target route is present in this endpoint.
+        return {"items": sorted(countries.values(), key=lambda row: row["reports"], reverse=True),
+                "attribution": "SANS Technology Institute, Internet Storm Center, https://isc.sans.edu",
+                "scope": "Country aggregates from participating DShield sensors; not a live event stream."}, None
     if key == "isc":
         # ISC currently returns a root status object; older API responses wrap it.
         record = raw.get("infocon", raw)
@@ -160,7 +184,7 @@ class Feeds:
                 temporary.unlink(missing_ok=True)
             self.enabled = enabled
             if enabled:
-                self.next_due = dict.fromkeys(SOURCES, 0)
+                # Re-enabling must not bypass provider refresh limits or backoff.
                 for record in self.records.values():
                     record["state"] = "stale" if record["data"] is not None else "loading"
 

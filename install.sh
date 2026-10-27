@@ -93,6 +93,9 @@ if [ -f "${SRC_DIR}/data/ne_110m_land.json" ]; then
 else
     echo -e "  ${AMBER}!${NC} Map data not found (map will show grid only)"
 fi
+if [ -f "${SRC_DIR}/data/country-labels.json" ]; then
+    cp "${SRC_DIR}/data/country-labels.json" /var/www/html/data/country-labels.json
+fi
 echo -e "  ${GREEN}✓${NC} /var/www/html/api/ and /data/ ready"
 
 # Install JOSHUA voice synthesis endpoint (espeak-ng via fcgiwrap)
